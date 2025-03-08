@@ -1,9 +1,10 @@
 import xyz.jpenilla.toothpick.setupToothpickProject
-import java.util.Locale
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
+    includeBuild("toothpick")
+
     repositories {
         gradlePluginPortal()
         mavenCentral()
@@ -12,9 +13,9 @@ pluginManagement {
 }
 
 plugins {
-    id("xyz.jpenilla.toothpick.settings") version "1.1.0-SNAPSHOT"
+    id("xyz.jpenilla.toothpick.settings") version "1.1.0+patch.1"
+    id("org.gradle.toolchains.foojay-resolver") version "0.9.0"
 }
 
-val forkName = "MyAirplaneFork"
-rootProject.name = forkName.toLowerCase(Locale.ROOT)
-setupToothpickProject(rootProject, forkName)
+rootProject.name = "AdvancedSlimeAirplane"
+setupToothpickProject(rootProject, rootProject.name)

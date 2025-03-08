@@ -1,9 +1,9 @@
-MyAirplaneFork-API
-MyAirplaneFork-Server
-
-last-airplane
-build/
+.idea/
 .gradle/
-
-launcher-*.jar
+build/
+AdvancedSlimeAirplane-API/
+AdvancedSlimeAirplane-Server/
+last-airplane
+*-paperclip.jar
 mcdevimports.json
+mcdevimports.conf

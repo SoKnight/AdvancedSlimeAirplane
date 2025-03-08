@@ -1,9 +1,6 @@
 [submodule "Airplane"]
 	path = Airplane
 	url = https://github.com/Technove/Airplane.git
-[submodule "Toothpick"]
-	path = Toothpick
-	url = https://github.com/SoKnight/Toothpick.git
 [submodule "toothpick"]
 	path = toothpick
 	url = https://github.com/SoKnight/Toothpick.git
