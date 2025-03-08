@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Sun, 9 Mar 2025 03:27:33 +0500
+Subject: [PATCH] Fix Flare dependency version
+
+
+diff --git a/pom.xml b/pom.xml
+index 62d23487bc5dcc8565f64c290b44f7d8b9a576ab..9f7fe2aa1accc79ab3066f1e32d4c848dac52d6a 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -204,7 +204,7 @@
+         <dependency>
+             <groupId>com.github.technove</groupId>
+             <artifactId>Flare</artifactId>
+-            <version>v3-SNAPSHOT</version>
++            <version>8c480bc6e0</version>
+             <scope>compile</scope>
+         </dependency>
+     </dependencies>

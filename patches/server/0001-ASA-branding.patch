@@ -1,11 +1,11 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Paul Sauve <paul@technove.co>
-Date: Wed, 3 Feb 2021 23:02:38 -0600
-Subject: [PATCH] MyAirplaneFork branding
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Sun, 9 Mar 2025 03:10:15 +0500
+Subject: [PATCH] ASA branding
 
 
 diff --git a/pom.xml b/pom.xml
-index efa2ea6b8422f900643eb2f0f65cf067c034cea3..1cd91deffb55e31f6a1f11af69b1fa3aa17abcf0 100644
+index 9b14a752ea1db9ad1b47aaea67fb62df8383f4c9..62d23487bc5dcc8565f64c290b44f7d8b9a576ab 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -39,8 +39,8 @@
@@ -14,13 +14,13 @@ index efa2ea6b8422f900643eb2f0f65cf067c034cea3..1cd91deffb55e31f6a1f11af69b1fa3a
          <dependency>
 -            <groupId>gg.airplane</groupId>
 -            <artifactId>airplane-api</artifactId>
-+            <groupId>com.mygroupid</groupId>
-+            <artifactId>myairplanefork-api</artifactId>
++            <groupId>me.soknight</groupId>
++            <artifactId>advancedslimeairplane-api</artifactId>
              <version>${project.version}</version>
              <scope>compile</scope>
          </dependency>
 diff --git a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
-index 5460f57f0473868b3fb09c526a1767f717a2740e..3072ae4ab8fff7e53d1ff8b56fe762d14e3baea8 100644
+index 3c4bd267e8a15f89226379e25c80869c1d4c9106..fa1463f041f9fed46d454a9ce0cb95f5d36b2d9a 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
 @@ -29,8 +29,8 @@ public class PaperVersionFetcher implements VersionFetcher {
@@ -29,13 +29,13 @@ index 5460f57f0473868b3fb09c526a1767f717a2740e..3072ae4ab8fff7e53d1ff8b56fe762d1
      public Component getVersionMessage(@Nonnull String serverVersion) {
 -        String[] parts = serverVersion.substring("git-Airplane-".length()).split("[-\\s]"); // Tuinity
 -        final Component updateMessage = getUpdateStatusMessage("TECHNOVE/Airplane", GITHUB_BRANCH_NAME, parts[0]); // Tuinity
-+        String[] parts = serverVersion.substring("git-MyAirplaneFork-".length()).split("[-\\s]"); // Tuinity // MyAirplaneFork
-+        final Component updateMessage = getUpdateStatusMessage("MyGithubName/MyAirplaneFork", GITHUB_BRANCH_NAME, parts[0]); // Tuinity // MyAirplaneFork
++        String[] parts = serverVersion.substring("git-AdvancedSlimeAirplane-".length()).split("[-\\s]"); // Tuinity // ASA
++        final Component updateMessage = getUpdateStatusMessage("SoKnight/AdvancedSlimeAirplane", GITHUB_BRANCH_NAME, parts[0]); // Tuinity // ASA
          final Component history = getHistory();
  
          return history != null ? TextComponent.ofChildren(updateMessage, Component.newline(), history) : updateMessage;
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 26f423d3fdc958764758573043310f84da08a08e..0c013dd8e17e84e9c006d61bbc9d3ca830c1cd6c 100644
+index 26f423d3fdc958764758573043310f84da08a08e..e87eb14d8085cea044ee34275f3f2c0d36ff465d 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -1650,7 +1650,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
@@ -43,12 +43,12 @@ index 26f423d3fdc958764758573043310f84da08a08e..0c013dd8e17e84e9c006d61bbc9d3ca8
  
      public String getServerModName() {
 -        return "Airplane"; // Airplane // Tuinity //Paper - Paper > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
-+        return "MyAirplaneFork"; // MyAirplaneFork // Airplane // Tuinity //Paper - Paper > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
++        return "AdvancedSlimeAirplane"; // ASA // Airplane // Tuinity //Paper - Paper > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
      }
  
      public CrashReport b(CrashReport crashreport) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index eab5bd32860d136864ca8f74be264236cf530910..6263352e543449fe1f62b7576f9b896e96caec4f 100644
+index d8697db30801606d46936caea2a5a41f82a34082..97c6f6b79c19ca4ede0f6094ef876f758f06d2e2 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -230,7 +230,7 @@ import javax.annotation.Nullable; // Paper
@@ -56,12 +56,12 @@ index eab5bd32860d136864ca8f74be264236cf530910..6263352e543449fe1f62b7576f9b896e
  
  public final class CraftServer implements Server {
 -    private final String serverName = "Airplane"; // Paper // Tuinity // Airplane
-+    private final String serverName = "MyAirplaneFork"; // Paper // Tuinity // Airplane // MyAirplaneFork
++    private final String serverName = "AdvancedSlimeAirplane"; // Paper // Tuinity // Airplane // ASA
      private final String serverVersion;
      private final String bukkitVersion = Versioning.getBukkitVersion();
      private final Logger logger = Logger.getLogger("Minecraft");
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
-index 1788d79ea489e446d3d9f541693d4ba3dfc26015..0e18f778a434b8b22bb595f06cc6ef7833e64489 100644
+index 1788d79ea489e446d3d9f541693d4ba3dfc26015..72349cf975c15f87ec9c09f5a71ccdec63a21d56 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 @@ -11,7 +11,7 @@ public final class Versioning {
@@ -69,7 +69,7 @@ index 1788d79ea489e446d3d9f541693d4ba3dfc26015..0e18f778a434b8b22bb595f06cc6ef78
          String result = "Unknown-Version";
  
 -        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/gg.airplane/airplane-api/pom.properties"); // Tuinity // Airplane
-+        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/com.mygroupid/myairplanefork-api/pom.properties"); // Tuinity // Airplane
++        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/me.soknight/advancedslimeairplane-api/pom.properties"); // Tuinity // Airplane // ASA
          Properties properties = new Properties();
  
          if (stream != null) {
