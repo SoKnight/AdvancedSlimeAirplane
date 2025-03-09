@@ -17,5 +17,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver") version "0.9.0"
 }
 
+includeBuild("AdvancedSlimePaper")
+
 rootProject.name = "AdvancedSlimeAirplane"
 setupToothpickProject(rootProject, rootProject.name)

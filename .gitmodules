@@ -4,3 +4,6 @@
 [submodule "toothpick"]
 	path = toothpick
 	url = https://github.com/SoKnight/Toothpick.git
+[submodule "AdvancedSlimePaper"]
+	path = AdvancedSlimePaper
+	url = https://github.com/SoKnight/AdvancedSlimePaper.git
