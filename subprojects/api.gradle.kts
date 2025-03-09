@@ -1,9 +1,11 @@
+java {
+    withJavadocJar()
+}
+
 repositories {
+
 }
 
 dependencies {
-}
-
-java {
-    withJavadocJar()
+    api("com.infernalsuite.aswm:api")
 }
