@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Mon, 10 Mar 2025 00:47:55 +0500
+Subject: [PATCH] Dont close SlimeWorldPlugin class loader
+
+
+diff --git a/src/main/java/org/bukkit/plugin/java/PluginClassLoader.java b/src/main/java/org/bukkit/plugin/java/PluginClassLoader.java
+index 4b52a57bf6228a6df51290d0b6896dc9e48bc14e..0879389f8cc4fc64144142a9863aa2e65a1be708 100644
+--- a/src/main/java/org/bukkit/plugin/java/PluginClassLoader.java
++++ b/src/main/java/org/bukkit/plugin/java/PluginClassLoader.java
+@@ -216,7 +216,9 @@ public final class PluginClassLoader extends URLClassLoader { // Spigot
+         try {
+             super.close();
+         } finally {
+-            jar.close();
++            if (this.plugin == null || !this.plugin.getName().equals("SlimeWorldPlugin")) { // ASWM - Don't close
++                jar.close();
++            } // ASWM - Don't close
+         }
+     }
+ 
