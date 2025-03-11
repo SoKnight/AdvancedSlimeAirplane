@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Wed, 12 Mar 2025 02:22:08 +0500
+Subject: [PATCH] Add SPI services declaration
+
+
+diff --git a/src/main/resources/META-INF/services/com.infernalsuite.aswm.api.AdvancedSlimePaperAPI b/src/main/resources/META-INF/services/com.infernalsuite.aswm.api.AdvancedSlimePaperAPI
+new file mode 100644
+index 0000000000000000000000000000000000000000..a01c19e4ddbc844c71ba3a0db6efb2a8082091cf
+--- /dev/null
++++ b/src/main/resources/META-INF/services/com.infernalsuite.aswm.api.AdvancedSlimePaperAPI
+@@ -0,0 +1 @@
++com.infernalsuite.aswm.AdvancedSlimePaper
+\ No newline at end of file
+diff --git a/src/main/resources/META-INF/services/com.infernalsuite.aswm.api.SlimeInternalsBridge b/src/main/resources/META-INF/services/com.infernalsuite.aswm.api.SlimeInternalsBridge
+new file mode 100644
+index 0000000000000000000000000000000000000000..a7f717096c91c3ea910dd6182cca4c7608fa364d
+--- /dev/null
++++ b/src/main/resources/META-INF/services/com.infernalsuite.aswm.api.SlimeInternalsBridge
+@@ -0,0 +1 @@
++com.infernalsuite.aswm.SlimeNMSBridge
+\ No newline at end of file

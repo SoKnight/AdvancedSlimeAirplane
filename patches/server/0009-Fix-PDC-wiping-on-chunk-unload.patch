@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Wed, 12 Mar 2025 02:26:02 +0500
+Subject: [PATCH] Fix PDC wiping on chunk unload
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+index 09e8233d618e71a73e8fa09315da57a20f55819e..322a99f8675ff1982ae3381d1f09142e735f8626 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+@@ -35,11 +35,12 @@ import java.util.Objects;
+ public final class NMSSlimeChunk implements SlimeChunk {
+ 
+     private Chunk chunk;
+-    private final CompoundBinaryTag extraData;
++    private CompoundBinaryTag extraData;
+ 
+     public NMSSlimeChunk(Chunk chunk, SlimeChunk reference) {
+         this.chunk = chunk;
+         this.extraData = reference != null ? reference.getExtraData() : CompoundBinaryTag.empty();
++        this.extraData.put("ChunkBukkitValues", Converter.convertTag(chunk.persistentDataContainer.toTagCompound()));
+     }
+ 
+     @Override

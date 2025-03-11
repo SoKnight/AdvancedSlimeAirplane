@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Wed, 12 Mar 2025 02:24:19 +0500
+Subject: [PATCH] Fix chunk saving on unload
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+index 60eccecde9611eec252fb1c2720e1637917c33fa..29df807f4338f2d627a5251020d5a975d76de3f2 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+@@ -22,6 +22,7 @@ import net.minecraft.util.datafix.DataConverterRegistry;
+ import net.minecraft.world.EnumDifficulty;
+ import net.minecraft.world.level.World;
+ import net.minecraft.world.level.biome.BiomeBase;
++import net.minecraft.world.level.chunk.Chunk;
+ import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.dimension.DimensionManager;
+ import net.minecraft.world.level.dimension.WorldDimension;
+@@ -114,6 +115,12 @@ public final class SlimeWorldServer extends WorldServer {
+         save(forceSave, close);
+     }
+ 
++    @Override
++    public void unloadChunk(Chunk chunk) {
++        getSlimeWorld().unload(chunk);
++        super.unloadChunk(chunk);
++    }
++
+     public Future<?> save(boolean forceSave, boolean close) {
+         AsyncCatcher.catchOp("SWM world save");
+ 

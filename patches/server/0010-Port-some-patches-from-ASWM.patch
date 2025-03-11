@@ -1,0 +1,415 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Wed, 12 Mar 2025 03:17:07 +0500
+Subject: [PATCH] Port some patches from ASWM
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+index a01891f5e377c5a0b1a406c3503108a9e787e2c7..1b97b70bb38f377bf2594f46a309ea256923d054 100644
+--- a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
++++ b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+@@ -1,9 +1,11 @@
+ package com.infernalsuite.aswm;
+ 
+ import com.infernalsuite.aswm.api.SlimeInternalsBridge;
++import com.infernalsuite.aswm.api.world.SlimeChunk;
+ import com.infernalsuite.aswm.api.world.SlimeWorld;
+ import com.infernalsuite.aswm.api.world.SlimeWorldInstance;
+ import com.infernalsuite.aswm.api.world.properties.SlimeProperties;
++import com.infernalsuite.aswm.level.NMSSlimeChunk;
+ import com.infernalsuite.aswm.level.SlimeBootstrap;
+ import com.infernalsuite.aswm.level.SlimeInMemoryWorld;
+ import com.infernalsuite.aswm.level.SlimeWorldServer;
+@@ -25,6 +27,7 @@ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.GameRules.GameRuleKey;
+ import net.minecraft.world.level.World;
+ import net.minecraft.world.level.WorldSettings;
++import net.minecraft.world.level.chunk.Chunk;
+ import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.dimension.DimensionManager;
+ import net.minecraft.world.level.dimension.WorldDimension;
+@@ -88,11 +91,18 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+     private SlimeWorld defaultNetherWorld;
+     private SlimeWorld defaultEndWorld;
+ 
++    private boolean loadingDefaultWorlds;
++
+     @Override
+     public int getCurrentVersion() {
+         return SharedConstants.getGameVersion().getWorldVersion();
+     }
+ 
++    @Override
++    public boolean isLoadingDefaultWorlds() {
++        return loadingDefaultWorlds;
++    }
++
+     @Override
+     public boolean loadOverworldOverride() {
+         if (defaultWorld == null)
+@@ -162,7 +172,7 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+         return loadInstance(slimeWorld, null);
+     }
+ 
+-    public SlimeWorldInstance loadInstance(SlimeWorld slimeWorld, @Nullable ResourceKey<net.minecraft.world.level.World> dimensionOverride) {
++    public SlimeWorldInstance loadInstance(SlimeWorld slimeWorld, @Nullable ResourceKey<World> dimensionOverride) {
+         String worldName = slimeWorld.getName();
+         if (Bukkit.getWorld(worldName) != null)
+             throw new IllegalArgumentException("World %s already exists! Maybe it's an outdated SlimeWorld object?".formatted(worldName));
+@@ -190,6 +200,32 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+         }
+     }
+ 
++    @Override
++    public boolean shouldBeAdded(org.bukkit.World world) {
++        SlimeWorldInstance instance = getInstance(world);
++        if (instance == null || loadingDefaultWorlds)
++            return true;
++
++        return !(instance instanceof SlimeInMemoryWorld cast) || cast.getInstance().isReady();
++    }
++
++    @Override
++    public boolean trySaveChunk(Object world, Object chunkAccess) {
++        // We're only storing fully-loaded chunks that need to be saved
++        if (chunkAccess instanceof Chunk cast && cast.isNeedsSaving()) {
++            SlimeWorldServer worldServer = (SlimeWorldServer) world;
++            SlimeInMemoryWorld slimeWorld = worldServer.getSlimeWorld();
++            SlimeChunk slimeChunk = slimeWorld.getChunk(cast.locX, cast.locZ);
++            if (slimeChunk == null)
++                return false;
++
++            slimeWorld.updateChunk(new NMSSlimeChunk(cast, slimeChunk));
++            cast.setNeedsSaving(false);
++        }
++
++        return true;
++    }
++
+     public void registerWorld(SlimeWorldServer world) {
+         MinecraftServer server = world.getMinecraftServer();
+         server.initWorld(world, world.worldDataServer, world.worldDataServer, world.worldDataServer.getGeneratorSettings());
+@@ -235,6 +271,7 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+             worldServer.clearDragonBattle();
+         }
+ 
++        worldServer.setReady(true);
+         return worldServer;
+     }
+ 
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+index 3d3f872e0596c1ac123c94af764c86deca9478cf..e31deeb07c449d05908194130a39461a80cc5e79 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+@@ -57,6 +57,15 @@ public final class NMSSlimeWorld implements SlimeWorld {
+                 .collect(Collectors.toList());
+     }
+ 
++    @Override
++    public void updateChunk(SlimeChunk chunk) {
++        if (chunk instanceof NMSSlimeChunk cast) {
++            this.memoryWorld.updateChunk(cast);
++        } else {
++            throw new IllegalArgumentException("This chunk isn't an instance of NMSSlimeChunk or is null!");
++        }
++    }
++
+     @Override
+     public List<CompoundBinaryTag> getWorldMaps() {
+         return instance.getSlimeWorld().getWorldMaps();
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java b/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
+index 81bdf97f22f1a6c6473acefc72d7aa223bbccdd3..f18586f9575e0b773a59c4752fb008d4d9b1b5c9 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
+@@ -26,6 +26,8 @@ import java.io.IOException;
+ import java.util.Arrays;
+ import java.util.Collection;
+ import java.util.List;
++import java.util.Objects;
++import java.util.concurrent.CompletableFuture;
+ 
+ /*
+ The concept of this is a bit flawed, since ideally this should be a 1:1 representation of the MC world.
+@@ -65,6 +67,14 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+         return instance.getMinecraftWorld().worldDataServer.getName();
+     }
+ 
++    public CompletableFuture<Chunk> promoteFuture(int x, int z) {
++        SlimeChunk slimeChunk = getChunk(x, z);
++        if (slimeChunk == null)
++            return null;
++
++        return CompletableFuture.supplyAsync(() -> promote(x, z, slimeChunk));
++    }
++
+     public Chunk promote(int x, int z, SlimeChunk chunk) {
+         SlimeChunkProxy chunkProxy;
+         if (chunk == null) {
+@@ -124,6 +134,12 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+         return chunkStorage.values();
+     }
+ 
++    @Override
++    public void updateChunk(SlimeChunk chunk) {
++        Objects.requireNonNull(chunk, "chunk cannot be null");
++        this.chunkStorage.put(SlimeWorld.chunkPosition(chunk), chunk);
++    }
++
+     @Override
+     public List<CompoundBinaryTag> getWorldMaps() {
+         return mirror.getWorldMaps();
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+index 29df807f4338f2d627a5251020d5a975d76de3f2..3d1f0ed3f5f37127081878b6eda4fc997f8a6c36 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+@@ -8,6 +8,7 @@ import com.infernalsuite.aswm.api.world.properties.SlimePropertyMap;
+ import com.infernalsuite.aswm.serialization.slime.SlimeSerializer;
+ import com.mojang.datafixers.util.Unit;
+ import lombok.Getter;
++import lombok.Setter;
+ import lombok.extern.log4j.Log4j2;
+ import net.minecraft.core.BlockPosition;
+ import net.minecraft.core.IRegistry;
+@@ -72,6 +73,9 @@ public final class SlimeWorldServer extends WorldServer {
+ 
+     private final Object saveLock = new Object();
+ 
++    @Getter @Setter
++    private boolean ready;
++
+     public SlimeWorldServer(
+             SlimeBootstrap slimeBootstrap, IWorldDataServer worldData,
+             ResourceKey<World> worldKey, ResourceKey<WorldDimension> dimensionKey,
+diff --git a/src/main/java/net/minecraft/server/level/PlayerChunkMap.java b/src/main/java/net/minecraft/server/level/PlayerChunkMap.java
+index fc687515fdfd47e90e11a2832de07d784edeef25..26e744db60e2d1650ff82443a7854139e86213f2 100644
+--- a/src/main/java/net/minecraft/server/level/PlayerChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/PlayerChunkMap.java
+@@ -1,53 +1,22 @@
+ package net.minecraft.server.level;
+ 
+-import co.aikar.timings.Timing; // Paper
+-import com.destroystokyo.paper.PaperWorldConfig; // Paper
++import co.aikar.timings.Timing;
++import com.destroystokyo.paper.PaperWorldConfig;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.Iterables;
+-import com.google.common.collect.ComparisonChain; // Paper
+ import com.google.common.collect.Lists;
+-import com.google.common.collect.Queues;
+-import com.google.common.collect.Sets;
++import com.infernalsuite.aswm.SlimeNMSBridge;
++import com.infernalsuite.aswm.level.SlimeWorldServer;
+ import com.mojang.datafixers.DataFixer;
+ import com.mojang.datafixers.util.Either;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+-import it.unimi.dsi.fastutil.longs.Long2ByteMap;
+-import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap; // Paper
+-import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
++import it.unimi.dsi.fastutil.longs.*;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
+-import it.unimi.dsi.fastutil.longs.LongIterator;
+-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+-import it.unimi.dsi.fastutil.longs.LongSet;
+ import it.unimi.dsi.fastutil.objects.ObjectBidirectionalIterator;
+ import it.unimi.dsi.fastutil.objects.ObjectIterator;
+-import java.io.File;
+-import java.io.IOException;
+-import java.io.Writer;
+-import java.util.HashMap; // Paper
+-import java.util.Collection;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map; // Paper
+-import java.util.Objects;
+-import java.util.Optional;
+-import java.util.Queue;
+-import java.util.Set;
+-import java.util.concurrent.CancellationException;
+-import java.util.UUID; // Paper
+-import java.util.concurrent.CompletableFuture;
+-import java.util.concurrent.CompletionException;
+-import java.util.concurrent.Executor;
+-import java.util.concurrent.atomic.AtomicInteger;
+-import java.util.function.BooleanSupplier;
+-import java.util.function.Consumer;
+-import java.util.function.IntFunction;
+-import java.util.function.IntSupplier;
+-import java.util.function.Supplier;
+-import java.util.stream.Collectors;
+-import java.util.stream.Stream;
+-import javax.annotation.Nullable;
++import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet;
++import it.unimi.dsi.fastutil.objects.Reference2BooleanOpenHashMap;
+ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportSystemDetails;
+ import net.minecraft.ReportedException;
+@@ -56,19 +25,11 @@ import net.minecraft.core.BlockPosition;
+ import net.minecraft.core.SectionPosition;
+ import net.minecraft.nbt.NBTTagCompound;
+ import net.minecraft.network.protocol.Packet;
+-import net.minecraft.network.protocol.game.PacketDebug;
+-import net.minecraft.network.protocol.game.PacketPlayOutAttachEntity;
+-import net.minecraft.network.protocol.game.PacketPlayOutLightUpdate;
+-import net.minecraft.network.protocol.game.PacketPlayOutMapChunk;
+-import net.minecraft.network.protocol.game.PacketPlayOutMount;
+-import net.minecraft.network.protocol.game.PacketPlayOutViewCentre;
+-import net.minecraft.network.protocol.game.PacketPlayOutViewDistance;
++import net.minecraft.network.protocol.game.*;
+ import net.minecraft.server.MCUtil;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.level.progress.WorldLoadListener;
+-import net.minecraft.server.network.PlayerConnection;
+ import net.minecraft.util.CSVWriter;
+-import net.minecraft.util.EntitySlice;
+ import net.minecraft.util.MathHelper;
+ import net.minecraft.util.profiling.GameProfilerFiller;
+ import net.minecraft.util.thread.IAsyncTaskHandler;
+@@ -84,15 +45,7 @@ import net.minecraft.world.entity.player.EntityHuman;
+ import net.minecraft.world.level.ChunkCoordIntPair;
+ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.World;
+-import net.minecraft.world.level.chunk.Chunk;
+-import net.minecraft.world.level.chunk.ChunkConverter;
+-import net.minecraft.world.level.chunk.ChunkGenerator;
+-import net.minecraft.world.level.chunk.ChunkSection;
+-import net.minecraft.world.level.chunk.ChunkStatus;
+-import net.minecraft.world.level.chunk.IChunkAccess;
+-import net.minecraft.world.level.chunk.ILightAccess;
+-import net.minecraft.world.level.chunk.ProtoChunk;
+-import net.minecraft.world.level.chunk.ProtoChunkExtension;
++import net.minecraft.world.level.chunk.*;
+ import net.minecraft.world.level.chunk.storage.ChunkRegionLoader;
+ import net.minecraft.world.level.chunk.storage.IChunkLoader;
+ import net.minecraft.world.level.chunk.storage.RegionFile;
+@@ -101,16 +54,26 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.DefinedStruct
+ import net.minecraft.world.level.storage.Convertable;
+ import net.minecraft.world.level.storage.WorldDataServer;
+ import net.minecraft.world.level.storage.WorldPersistentData;
+-import net.minecraft.world.phys.Vec3D;
+-import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet; // Paper
+-import it.unimi.dsi.fastutil.objects.Reference2BooleanOpenHashMap; // Tuinity
+ import org.apache.commons.lang3.mutable.MutableBoolean;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+-
+-import org.bukkit.entity.Player; // CraftBukkit
++import org.bukkit.entity.Player;
+ import org.spigotmc.AsyncCatcher;
+ 
++import javax.annotation.Nullable;
++import java.io.File;
++import java.io.IOException;
++import java.io.Writer;
++import java.util.*;
++import java.util.concurrent.CancellationException;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionException;
++import java.util.concurrent.Executor;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.function.*;
++import java.util.stream.Collectors;
++import java.util.stream.Stream;
++
+ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+@@ -1255,6 +1218,14 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+     }
+ 
+     private CompletableFuture<Either<IChunkAccess, PlayerChunk.Failure>> f(ChunkCoordIntPair chunkcoordintpair) {
++        // ASA - Promote chunks for Slime World using special method
++        if (world instanceof SlimeWorldServer cast) {
++            CompletableFuture<Chunk> future = cast.getSlimeWorld().promoteFuture(chunkcoordintpair.x, chunkcoordintpair.z);
++            if (future != null) {
++                return future.thenApply(Either::left);
++            }
++        }
++
+         // Paper start - Async chunk io
+         final java.util.function.BiFunction<ChunkRegionLoader.InProgressChunkHolder, Throwable, Either<IChunkAccess, PlayerChunk.Failure>> syncLoadComplete = (chunkHolder, ioThrowable) -> {
+             try (Timing ignored = this.world.timings.chunkLoad.startTimingIfSync()) { // Paper
+@@ -1568,6 +1539,10 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+     }
+ 
+     public boolean saveChunk(IChunkAccess ichunkaccess) {
++        // ASA - Save Slime World chunks using special method
++        if (world instanceof SlimeWorldServer cast)
++            return SlimeNMSBridge.instance().trySaveChunk(world, ichunkaccess);
++
+         try (co.aikar.timings.Timing ignored = this.world.timings.chunkSave.startTiming()) { // Paper
+         this.m.a(ichunkaccess.getPos());
+         if (!ichunkaccess.isNeedsSaving()) {
+diff --git a/src/main/java/net/minecraft/world/entity/npc/MobSpawnerTrader.java b/src/main/java/net/minecraft/world/entity/npc/MobSpawnerTrader.java
+index 7c8a2151be8a0f48cba1c15d231d5dbdb500b4d6..07b8bd220e458f95ac2c10df898c65e99112cfb1 100644
+--- a/src/main/java/net/minecraft/world/entity/npc/MobSpawnerTrader.java
++++ b/src/main/java/net/minecraft/world/entity/npc/MobSpawnerTrader.java
+@@ -1,9 +1,6 @@
+ package net.minecraft.world.entity.npc;
+ 
+-import java.util.Iterator;
+-import java.util.Optional;
+-import java.util.Random;
+-import javax.annotation.Nullable;
++import com.infernalsuite.aswm.level.SlimeWorldServer;
+ import net.minecraft.core.BlockPosition;
+ import net.minecraft.nbt.NBTTagCompound;
+ import net.minecraft.network.chat.IChatBaseComponent;
+@@ -17,15 +14,16 @@ import net.minecraft.world.entity.ai.village.poi.VillagePlace;
+ import net.minecraft.world.entity.ai.village.poi.VillagePlaceType;
+ import net.minecraft.world.entity.animal.horse.EntityLlamaTrader;
+ import net.minecraft.world.entity.player.EntityHuman;
+-import net.minecraft.world.level.GameRules;
+-import net.minecraft.world.level.IBlockAccess;
+-import net.minecraft.world.level.IWorldReader;
+-import net.minecraft.world.level.MobSpawner;
+-import net.minecraft.world.level.SpawnerCreature;
++import net.minecraft.world.level.*;
+ import net.minecraft.world.level.biome.Biomes;
+ import net.minecraft.world.level.levelgen.HeightMap;
+ import net.minecraft.world.level.storage.IWorldDataServer;
+ 
++import javax.annotation.Nullable;
++import java.util.Iterator;
++import java.util.Optional;
++import java.util.Random;
++
+ public class MobSpawnerTrader implements MobSpawner {
+ 
+     private final Random a = new Random();
+@@ -52,6 +50,10 @@ public class MobSpawnerTrader implements MobSpawner {
+ 
+     @Override
+     public int a(WorldServer worldserver, boolean flag, boolean flag1) {
++        // ASA - An unknown shit-patch for #tickRaids(WorldServer, bool, bool)... idk, sorry
++        if (worldserver instanceof SlimeWorldServer)
++            return 0;
++
+         // Paper start
+         if (this.getMinuteTimer() == Integer.MIN_VALUE) {
+             this.setMinuteTimer(worldserver.paperConfig.wanderingTraderSpawnMinuteTicks);
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 8c30fd48794d912a89435f1a039b87b0ef5ab1b1..9b8293d1d233aa38846a142ce884ce4e3808c9f2 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -8,6 +8,7 @@ import com.google.common.collect.Iterators;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.MapMaker;
+ import com.infernalsuite.aswm.AdvancedSlimePaper;
++import com.infernalsuite.aswm.SlimeNMSBridge;
+ import com.mojang.authlib.GameProfile;
+ import com.mojang.brigadier.StringReader;
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+@@ -1211,6 +1212,11 @@ public final class CraftServer implements Server {
+             System.out.println("World " + world.getName() + " is a duplicate of another world and has been prevented from loading. Please delete the uid.dat file from " + world.getName() + "'s world directory if you want to be able to load the duplicate world.");
+             return;
+         }
++
++        // ASA - Precondition for Slime Worlds adding
++        if (!SlimeNMSBridge.instance().shouldBeAdded(world))
++            return;
++
+         worlds.put(world.getName().toLowerCase(java.util.Locale.ENGLISH), world);
+     }
+ 

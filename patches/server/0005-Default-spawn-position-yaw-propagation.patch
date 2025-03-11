@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Wed, 12 Mar 2025 02:16:23 +0500
+Subject: [PATCH] Default spawn position yaw propagation
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+index 735831b4ce1fc6f9fd7d0ac9de0de402b8f644d2..60eccecde9611eec252fb1c2720e1637917c33fa 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+@@ -95,7 +95,7 @@ public final class SlimeWorldServer extends WorldServer {
+                 properties.getValue(SlimeProperties.SPAWN_X),
+                 properties.getValue(SlimeProperties.SPAWN_Y),
+                 properties.getValue(SlimeProperties.SPAWN_Z)
+-        ), 0);
++        ), properties.getValue(SlimeProperties.SPAWN_YAW));
+ 
+         super.setSpawnFlags(
+                 properties.getValue(SlimeProperties.ALLOW_MONSTERS),

@@ -1,0 +1,88 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Wed, 12 Mar 2025 02:13:31 +0500
+Subject: [PATCH] Pass SlimeChunk reference to NMSSlimeChunk
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+index f9a02d5028b90e2bcd032d7d722e6a8560f1bc05..09e8233d618e71a73e8fa09315da57a20f55819e 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+@@ -34,12 +34,12 @@ import java.util.Objects;
+ @Getter @Setter
+ public final class NMSSlimeChunk implements SlimeChunk {
+ 
+-    private final CompoundBinaryTag extraData;
+     private Chunk chunk;
++    private final CompoundBinaryTag extraData;
+ 
+-    public NMSSlimeChunk(Chunk chunk) {
++    public NMSSlimeChunk(Chunk chunk, SlimeChunk reference) {
+         this.chunk = chunk;
+-        this.extraData = CompoundBinaryTag.empty();
++        this.extraData = reference != null ? reference.getExtraData() : CompoundBinaryTag.empty();
+     }
+ 
+     @Override
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+index b76b7f659af9b1d899bf6c2bcf7e95d3e4667b44..3d3f872e0596c1ac123c94af764c86deca9478cf 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+@@ -46,14 +46,14 @@ public final class NMSSlimeWorld implements SlimeWorld {
+         if (chunk == null)
+             return null;
+ 
+-        return new NMSSlimeChunk(chunk); // UpgradeData loss
++        return new NMSSlimeChunk(chunk, memoryWorld.getChunk(x, z));
+     }
+ 
+     @Override
+     public Collection<SlimeChunk> getChunkStorage() {
+         return instance.getChunkProvider().loadedChunkMap.values().stream()
+                 .filter(Objects::nonNull)
+-                .map(NMSSlimeChunk::new)
++                .map(chunk -> new NMSSlimeChunk(chunk, memoryWorld.getChunk(chunk.locX, chunk.locZ)))
+                 .collect(Collectors.toList());
+     }
+ 
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java b/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
+index 1668cd96a1ce70a928a81c03677c46ea6c208ecc..81bdf97f22f1a6c6473acefc72d7aa223bbccdd3 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
+@@ -76,10 +76,10 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+             BiomeStorage biomeStorage = new BiomeStorage(instance.r().b(IRegistry.ay), biomes);
+ 
+             chunkProxy = new SlimeChunkProxy(instance, pos, biomeStorage);
+-            chunk = new NMSSlimeChunk(chunkProxy); // UpgradeData loss
++            chunk = new NMSSlimeChunk(chunkProxy, getChunk(x, z));
+         } else {
+             chunkProxy = SlimeChunkConverter.deserializeChunk(instance, chunk);
+-            chunk = new SafeNmsChunkWrapper(new NMSSlimeChunk(chunkProxy), chunk); // UpgradeData loss
++            chunk = new SafeNmsChunkWrapper(new NMSSlimeChunk(chunkProxy, chunk), chunk);
+         }
+ 
+         this.chunkStorage.put(SlimeWorld.chunkPosition(x, z), chunk);
+@@ -89,9 +89,12 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+     // Authored by: Kenox <muranelp@gmail.com>
+     // Don't use the NMS live chunk in the chunk map
+     public void unload(Chunk nativeChunk) {
+-        SlimeChunk slimeChunk = new NMSSlimeChunk(nativeChunk);
++        int chunkX = nativeChunk.locX;
++        int chunkZ = nativeChunk.locZ;
++
++        SlimeChunk slimeChunk = new NMSSlimeChunk(nativeChunk, getChunk(chunkX, chunkZ));
+         if (FastChunkPruner.canBePruned(mirror, nativeChunk)) {
+-            this.chunkStorage.remove(SlimeWorld.chunkPosition(nativeChunk.locX, nativeChunk.locZ));
++            this.chunkStorage.remove(SlimeWorld.chunkPosition(chunkX, chunkZ));
+             return;
+         }
+ 
+@@ -223,7 +226,7 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+     public void ensureChunkMarkedAsLoaded(SlimeChunkProxy chunk) {
+         long chunkPos = SlimeWorld.chunkPosition(chunk.locX, chunk.locZ);
+         if (chunkStorage.get(chunkPos) instanceof SlimeChunkSkeleton cast) {
+-            chunkStorage.put(chunkPos, new NMSSlimeChunk(chunk)); // UpgradeData loss
++            chunkStorage.put(chunkPos, new NMSSlimeChunk(chunk, cast));
+         }
+     }
+ 
