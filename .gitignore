@@ -1,6 +1,7 @@
 .idea/
 .gradle/
 build/
+run/
 AdvancedSlimeAirplane-API/
 AdvancedSlimeAirplane-Server/
 last-airplane
