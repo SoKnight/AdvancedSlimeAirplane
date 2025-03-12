@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Thu, 13 Mar 2025 01:32:07 +0500
+Subject: [PATCH] Bump Java version to 17
+
+
+diff --git a/pom.xml b/pom.xml
+index 9f7fe2aa1accc79ab3066f1e32d4c848dac52d6a..b1e5ae3183d2baf1a45298266fffb2564a2b5e29 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -14,8 +14,8 @@
+         <bt.name>git</bt.name>
+         <minecraft.version>1.16.5</minecraft.version>
+         <minecraft_version>1_16_R3</minecraft_version>
+-        <maven.compiler.source>1.8</maven.compiler.source>
+-        <maven.compiler.target>1.8</maven.compiler.target>
++        <maven.compiler.source>17</maven.compiler.source>
++        <maven.compiler.target>17</maven.compiler.target>
+     </properties>
+ 
+     <parent>

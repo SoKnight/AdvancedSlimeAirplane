@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Thu, 13 Mar 2025 01:32:07 +0500
+Subject: [PATCH] Bump Java version to 17
+
+
+diff --git a/pom.xml b/pom.xml
+index 6fd6066b16d4dbf8695be16ec8b2d135d4d04901..dda63548f376fafd3ed8ff3665025ca4434ec4c0 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -19,8 +19,8 @@
+ 
+     <properties>
+         <!-- <skipTests>true</skipTests> Paper - This [was] not going to end well -->
+-        <maven.compiler.source>1.8</maven.compiler.source>
+-        <maven.compiler.target>1.8</maven.compiler.target>
++        <maven.compiler.source>17</maven.compiler.source>
++        <maven.compiler.target>17</maven.compiler.target>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+         <adventure.version>4.7.0</adventure.version> <!-- Paper - When updating this make sure to update the linked JavaDocs on the homepage as well! -->
+     </properties>
+@@ -281,10 +281,10 @@
+                         <link>https://javadoc.io/doc/org.jetbrains/annotations-java5/20.1.0/</link>
+                         <link>https://javadoc.io/doc/net.md-5/bungeecord-chat/1.16-R0.4/</link>
+                         <!-- Paper start -->
+-                        <link>https://jd.adventure.kyori.net/api/${adventure.version}/</link>
+-                        <link>https://jd.adventure.kyori.net/text-serializer-gson/${adventure.version}/</link>
+-                        <link>https://jd.adventure.kyori.net/text-serializer-legacy/${adventure.version}/</link>
+-                        <link>https://jd.adventure.kyori.net/text-serializer-plain/${adventure.version}/</link>
++                        <link>https://jd.advntr.dev/api/${adventure.version}/</link>
++                        <link>https://jd.advntr.dev/text-serializer-gson/${adventure.version}/</link>
++                        <link>https://jd.advntr.dev/text-serializer-legacy/${adventure.version}/</link>
++                        <link>https://jd.advntr.dev/text-serializer-plain/${adventure.version}/</link>
+                         <!-- Paper end -->
+                     </links>
+                 </configuration>

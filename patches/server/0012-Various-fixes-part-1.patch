@@ -1,0 +1,640 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Thu, 13 Mar 2025 01:34:07 +0500
+Subject: [PATCH] Various fixes part 1
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/Converter.java b/src/main/java/com/infernalsuite/aswm/Converter.java
+index 2c02adb5192886284695703f0429c9495f67426a..ecd0172e2d166ce56a13a1902b95d091e23258ae 100644
+--- a/src/main/java/com/infernalsuite/aswm/Converter.java
++++ b/src/main/java/com/infernalsuite/aswm/Converter.java
+@@ -67,20 +67,21 @@ public final class Converter {
+     @SuppressWarnings("unchecked")
+     public static <T extends BinaryTag> T convertTag(NBTBase base) {
+         return switch (base.getTypeId()) {
+-            case 0 -> (T) EndBinaryTag.endBinaryTag();
+-            case 1 -> (T) ByteBinaryTag.byteBinaryTag(((NBTTagByte) base).asByte());
+-            case 2 -> (T) ShortBinaryTag.shortBinaryTag(((NBTTagShort) base).asShort());
+-            case 3 -> (T) IntBinaryTag.intBinaryTag(((NBTTagInt) base).asInt());
+-            case 4 -> (T) LongBinaryTag.longBinaryTag(((NBTTagLong) base).asLong());
+-            case 5 -> (T) FloatBinaryTag.floatBinaryTag(((NBTTagFloat) base).asFloat());
+-            case 6 -> (T) DoubleBinaryTag.doubleBinaryTag(((NBTTagDouble) base).asDouble());
+-            case 7 -> (T) ByteArrayBinaryTag.byteArrayBinaryTag(((NBTTagByteArray) base).getBytes());
+-            case 8 -> (T) StringBinaryTag.stringBinaryTag(base.asString());
++            case 0 -> (T) EndBinaryTag.get();
++            case 1 -> (T) ByteBinaryTag.of(((NBTTagByte) base).asByte());
++            case 2 -> (T) ShortBinaryTag.of(((NBTTagShort) base).asShort());
++            case 3 -> (T) IntBinaryTag.of(((NBTTagInt) base).asInt());
++            case 4 -> (T) LongBinaryTag.of(((NBTTagLong) base).asLong());
++            case 5 -> (T) FloatBinaryTag.of(((NBTTagFloat) base).asFloat());
++            case 6 -> (T) DoubleBinaryTag.of(((NBTTagDouble) base).asDouble());
++            case 7 -> (T) ByteArrayBinaryTag.of(((NBTTagByteArray) base).getBytes());
++            case 8 -> (T) StringBinaryTag.of(base.asString());
+             case 9 -> {
+                 List<BinaryTag> list = new ArrayList<>();
+                 NBTTagList originalList = ((NBTTagList) base);
+                 for (NBTBase entry : originalList) list.add(convertTag(entry));
+-                yield (T) ListBinaryTag.listBinaryTag(list.get(0).type(), list);
++                BinaryTagType<T> tagType = convertTagType(originalList.d_());
++                yield (T) ListBinaryTag.of(tagType, list);
+             }
+             case 10 -> {
+                 CompoundBinaryTag.Builder builder = CompoundBinaryTag.builder();
+@@ -88,10 +89,30 @@ public final class Converter {
+                 for (String key : originalCompound.getKeys()) builder.put(key, convertTag(Objects.requireNonNull(originalCompound.get(key))));
+                 yield (T) builder.build();
+             }
+-            case 11 -> (T) IntArrayBinaryTag.intArrayBinaryTag(((NBTTagIntArray) base).getInts());
+-            case 12 -> (T) LongArrayBinaryTag.longArrayBinaryTag(((NBTTagLongArray) base).getLongs());
++            case 11 -> (T) IntArrayBinaryTag.of(((NBTTagIntArray) base).getInts());
++            case 12 -> (T) LongArrayBinaryTag.of(((NBTTagLongArray) base).getLongs());
+             default -> throw new IllegalArgumentException("Invalid tag type " + base.getTypeId());
+         };
+     }
+ 
++    @SuppressWarnings("unchecked")
++    public static <T extends BinaryTag> BinaryTagType<T> convertTagType(byte typeId) {
++        return (BinaryTagType<T>) switch (typeId) {
++            case 0 -> BinaryTagTypes.END;
++            case 1 -> BinaryTagTypes.BYTE;
++            case 2 -> BinaryTagTypes.SHORT;
++            case 3 -> BinaryTagTypes.INT;
++            case 4 -> BinaryTagTypes.LONG;
++            case 5 -> BinaryTagTypes.FLOAT;
++            case 6 -> BinaryTagTypes.DOUBLE;
++            case 7 -> BinaryTagTypes.BYTE_ARRAY;
++            case 8 -> BinaryTagTypes.STRING;
++            case 9 -> BinaryTagTypes.LIST;
++            case 10 -> BinaryTagTypes.COMPOUND;
++            case 11 -> BinaryTagTypes.INT_ARRAY;
++            case 12 -> BinaryTagTypes.LONG_ARRAY;
++            default -> throw new IllegalArgumentException("Invalid tag type " + typeId);
++        };
++    }
++
+ }
+\ No newline at end of file
+diff --git a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+index 1b97b70bb38f377bf2594f46a309ea256923d054..c352ad316f6f0c0aa335ded0066bccf7a7a72472 100644
+--- a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
++++ b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+@@ -9,6 +9,7 @@ import com.infernalsuite.aswm.level.NMSSlimeChunk;
+ import com.infernalsuite.aswm.level.SlimeBootstrap;
+ import com.infernalsuite.aswm.level.SlimeInMemoryWorld;
+ import com.infernalsuite.aswm.level.SlimeWorldServer;
++import com.mojang.serialization.Dynamic;
+ import com.mojang.serialization.Lifecycle;
+ import lombok.extern.log4j.Log4j2;
+ import net.kyori.adventure.nbt.BinaryTag;
+@@ -17,25 +18,27 @@ import net.kyori.adventure.nbt.StringBinaryTag;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.core.IRegistry;
+ import net.minecraft.core.RegistryMaterials;
++import net.minecraft.nbt.DynamicOpsNBT;
+ import net.minecraft.nbt.NBTBase;
++import net.minecraft.nbt.NBTTagCompound;
+ import net.minecraft.resources.MinecraftKey;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.dedicated.DedicatedServer;
+ import net.minecraft.server.dedicated.DedicatedServerProperties;
++import net.minecraft.util.datafix.DataFixTypes;
+ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.GameRules.GameRuleKey;
+ import net.minecraft.world.level.World;
+ import net.minecraft.world.level.WorldSettings;
+ import net.minecraft.world.level.chunk.Chunk;
+ import net.minecraft.world.level.chunk.ChunkGenerator;
++import net.minecraft.world.level.chunk.IChunkAccess;
++import net.minecraft.world.level.chunk.ProtoChunkExtension;
+ import net.minecraft.world.level.dimension.DimensionManager;
+ import net.minecraft.world.level.dimension.WorldDimension;
+ import net.minecraft.world.level.dimension.end.EnderDragonBattle;
+-import net.minecraft.world.level.storage.Convertable;
+-import net.minecraft.world.level.storage.PersistentCommandStorage;
+-import net.minecraft.world.level.storage.WorldDataServer;
+-import net.minecraft.world.level.storage.WorldPersistentData;
++import net.minecraft.world.level.storage.*;
+ import org.apache.commons.io.FileUtils;
+ import org.bukkit.Bukkit;
+ import org.bukkit.World.Environment;
+@@ -211,18 +214,31 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+ 
+     @Override
+     public boolean trySaveChunk(Object world, Object chunkAccess) {
+-        // We're only storing fully-loaded chunks that need to be saved
+-        if (chunkAccess instanceof Chunk cast && cast.isNeedsSaving()) {
+-            SlimeWorldServer worldServer = (SlimeWorldServer) world;
+-            SlimeInMemoryWorld slimeWorld = worldServer.getSlimeWorld();
+-            SlimeChunk slimeChunk = slimeWorld.getChunk(cast.locX, cast.locZ);
+-            if (slimeChunk == null)
+-                return false;
+-
+-            slimeWorld.updateChunk(new NMSSlimeChunk(cast, slimeChunk));
+-            cast.setNeedsSaving(false);
++        if (chunkAccess instanceof IChunkAccess cast && !cast.isNeedsSaving())
++            return true;
++
++        Chunk chunk;
++        if (chunkAccess instanceof ProtoChunkExtension cast) {
++            chunk = cast.getWrappedChunk();
++        } else if (chunkAccess instanceof Chunk cast) {
++            chunk = cast;
++        } else {
++            return true;
++        }
++
++        SlimeWorldServer worldServer = (SlimeWorldServer) world;
++        SlimeInMemoryWorld slimeWorld = worldServer.getSlimeWorld();
++
++        SlimeChunk slimeChunk = slimeWorld.getChunk(chunk.locX, chunk.locZ);
++        System.out.printf("Slime chunk at (%d, %d): %s%n", chunk.locX, chunk.locZ, slimeChunk);
++        if (slimeChunk instanceof NMSSlimeChunk cast) {
++            cast.setChunk(chunk);
++        } else {
++            slimeWorld.updateChunk(new NMSSlimeChunk(chunk, slimeChunk));
+         }
+ 
++        System.out.printf("Chunk (%d, %d) updated!%n", chunk.locX, chunk.locZ);
++        chunk.setNeedsSaving(false);
+         return true;
+     }
+ 
+@@ -281,36 +297,65 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+         DedicatedServerProperties serverProps = ((DedicatedServer) mcServer).getDedicatedServerProperties();
+         CompoundBinaryTag extraData = world.getExtraData();
+         String worldName = world.getName();
++        WorldDataServer data;
++
++        CompoundBinaryTag levelDataTag = extraData.getCompound("LevelData", null);
++        if (levelDataTag != null) {
++            int dataVersion = levelDataTag.getInt("DataVersion", -1);
++            NBTTagCompound nmsLevelData = (NBTTagCompound) Converter.convertTag(levelDataTag);
++
++            Dynamic<NBTBase> dynamic = mcServer.getDataFixer().update(
++                    DataFixTypes.LEVEL.a(),
++                    new Dynamic<>(DynamicOpsNBT.a, nmsLevelData),
++                    dataVersion,
++                    getCurrentVersion()
++            );
+ 
+-        GameRules gameRules = new GameRules();
+-        if (extraData != null) {
+-            CompoundBinaryTag gamerulesTag = extraData.getCompound("gamerules");
+-            if (gamerulesTag.size() != 0) {
+-                Map<String, GameRuleKey<?>> gameRuleKeys = CraftWorld.getGameRulesNMS();
+-                gamerulesTag.forEach(entry -> {
+-                    String gameRule = entry.getKey();
+-                    BinaryTag value = entry.getValue();
+-
+-                    if (gameRuleKeys.containsKey(gameRule) && value instanceof StringBinaryTag valueCast) {
+-                        GameRules.GameRuleValue<?> gameRuleValue = gameRules.get(gameRuleKeys.get(gameRule));
+-                        gameRuleValue.setValue(valueCast.value());
+-                        gameRuleValue.onChange(mcServer);
+-                    }
+-                });
++            LevelVersion levelVersion = LevelVersion.a(dynamic);
++            WorldSettings worldSettings = WorldSettings.a(dynamic, mcServer.datapackconfiguration);
++
++            data = WorldDataServer.a(
++                    dynamic,
++                    mcServer.getDataFixer(),
++                    dataVersion,
++                    null,
++                    worldSettings,
++                    levelVersion,
++                    serverProps.generatorSettings,
++                    Lifecycle.stable()
++            );
++        } else {
++            GameRules gameRules = new GameRules();
++            if (extraData != null) {
++                CompoundBinaryTag gamerulesTag = extraData.getCompound("gamerules");
++                if (!gamerulesTag.keySet().isEmpty()) {
++                    Map<String, GameRuleKey<?>> gameRuleKeys = CraftWorld.getGameRulesNMS();
++                    gamerulesTag.forEach(entry -> {
++                        String gameRule = entry.getKey();
++                        BinaryTag value = entry.getValue();
++
++                        if (gameRuleKeys.containsKey(gameRule) && value instanceof StringBinaryTag valueCast) {
++                            GameRules.GameRuleValue<?> gameRuleValue = gameRules.get(gameRuleKeys.get(gameRule));
++                            gameRuleValue.setValue(valueCast.value());
++                            gameRuleValue.onChange(mcServer);
++                        }
++                    });
++                }
+             }
++
++            WorldSettings worldSettings = new WorldSettings(
++                    worldName,
++                    serverProps.gamemode,
++                    false,
++                    serverProps.difficulty,
++                    false,
++                    gameRules,
++                    mcServer.datapackconfiguration
++            );
++
++            data = new WorldDataServer(worldSettings, serverProps.generatorSettings, Lifecycle.stable());
+         }
+ 
+-        WorldSettings worldSettings = new WorldSettings(
+-                worldName,
+-                serverProps.gamemode,
+-                false,
+-                serverProps.difficulty,
+-                false,
+-                gameRules,
+-                mcServer.datapackconfiguration
+-        );
+-
+-        WorldDataServer data = new WorldDataServer(worldSettings, serverProps.generatorSettings, Lifecycle.stable());
+         data.checkName(worldName);
+         data.a(mcServer.getServerModName(), mcServer.getModded().isPresent());
+         data.c(true);
+diff --git a/src/main/java/com/infernalsuite/aswm/level/FastChunkPruner.java b/src/main/java/com/infernalsuite/aswm/level/FastChunkPruner.java
+index c0438c6885efbe8fe01b68abac69d4be82ce7f3e..8f2dd8c8d73b6becb9c66ca40574d196b4d9f0c5 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/FastChunkPruner.java
++++ b/src/main/java/com/infernalsuite/aswm/level/FastChunkPruner.java
+@@ -45,7 +45,7 @@ public final class FastChunkPruner {
+ 
+     private static boolean areSectionsEmpty(Chunk chunk) {
+         for (var section : chunk.getSections())
+-            if (!section.isFullOfAir())
++            if (section != null && !section.isFullOfAir())
+                 return false;
+ 
+         return true;
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+index 322a99f8675ff1982ae3381d1f09142e735f8626..3b7c38987d5ebdbb02f8d4982cf6de230ecb4c5a 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+@@ -29,18 +29,23 @@ import java.util.Arrays;
+ import java.util.Collection;
+ import java.util.List;
+ import java.util.Objects;
++import java.util.function.Consumer;
+ 
+ @Slf4j
+ @Getter @Setter
+ public final class NMSSlimeChunk implements SlimeChunk {
+ 
+-    private Chunk chunk;
+-    private CompoundBinaryTag extraData;
++    private @NotNull Chunk chunk;
++    private @NotNull CompoundBinaryTag extraData;
+ 
+-    public NMSSlimeChunk(Chunk chunk, SlimeChunk reference) {
++    public NMSSlimeChunk(@NotNull Chunk chunk, @Nullable SlimeChunk reference) {
+         this.chunk = chunk;
+-        this.extraData = reference != null ? reference.getExtraData() : CompoundBinaryTag.empty();
+-        this.extraData.put("ChunkBukkitValues", Converter.convertTag(chunk.persistentDataContainer.toTagCompound()));
++        updateExtraData(tag -> {
++            if (reference != null)
++                tag.put(reference.getExtraData());
++
++            tag.put("ChunkBukkitValues", Converter.convertTag(chunk.persistentDataContainer.toTagCompound()));
++        });
+     }
+ 
+     @Override
+@@ -97,7 +102,7 @@ public final class NMSSlimeChunk implements SlimeChunk {
+     @Override
+     public @NotNull CompoundBinaryTag getHeightMaps() {
+         CompoundBinaryTag.Builder builder = CompoundBinaryTag.builder();
+-        chunk.heightMap.forEach((type, map) -> builder.put(type.name(), LongArrayBinaryTag.longArrayBinaryTag(map.a())));
++        chunk.heightMap.forEach((type, map) -> builder.put(type.name(), LongArrayBinaryTag.of(map.a())));
+         return builder.build();
+     }
+ 
+@@ -126,6 +131,25 @@ public final class NMSSlimeChunk implements SlimeChunk {
+         return Lists.transform(entities, Converter::convertTag);
+     }
+ 
++    @Override
++    public @NotNull CompoundBinaryTag putExtraData(@Nullable CompoundBinaryTag extraData) {
++        this.extraData = extraData != null ? extraData : CompoundBinaryTag.empty();
++        return this.extraData;
++    }
++
++    @Override
++    public @NotNull CompoundBinaryTag updateExtraData(@NotNull Consumer<CompoundBinaryTag.Builder> compoundCustomizer) {
++        Objects.requireNonNull(compoundCustomizer, "compoundCustomizer cannot be null");
++        CompoundBinaryTag.Builder builder = CompoundBinaryTag.builder();
++
++        if (extraData != null)
++            builder.put(extraData);
++
++        compoundCustomizer.accept(builder);
++        this.extraData = builder.build();
++        return extraData;
++    }
++
+     private @Nullable NBTTagCompound serializeEntity(Entity entity) {
+         try {
+             if (entity.origin != null && entity.origin.getWorld() == null) {
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+index e31deeb07c449d05908194130a39461a80cc5e79..906ebb49caa0e9d42e6ff7ea0d58aa58bd42529b 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+@@ -7,12 +7,18 @@ import com.infernalsuite.aswm.api.world.SlimeWorld;
+ import com.infernalsuite.aswm.api.world.properties.SlimePropertyMap;
+ import net.kyori.adventure.nbt.CompoundBinaryTag;
+ import net.minecraft.SharedConstants;
++import net.minecraft.server.level.PlayerChunk;
+ import net.minecraft.world.level.chunk.Chunk;
++import net.minecraft.world.level.saveddata.PersistentBase;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
+ import java.io.IOException;
+ import java.util.Collection;
+ import java.util.List;
++import java.util.Map;
+ import java.util.Objects;
++import java.util.function.Consumer;
+ import java.util.stream.Collectors;
+ 
+ public final class NMSSlimeWorld implements SlimeWorld {
+@@ -51,10 +57,18 @@ public final class NMSSlimeWorld implements SlimeWorld {
+ 
+     @Override
+     public Collection<SlimeChunk> getChunkStorage() {
+-        return instance.getChunkProvider().loadedChunkMap.values().stream()
+-                .filter(Objects::nonNull)
+-                .map(chunk -> new NMSSlimeChunk(chunk, memoryWorld.getChunk(chunk.locX, chunk.locZ)))
+-                .collect(Collectors.toList());
++        long start = System.currentTimeMillis();
++        var visibleChunks = instance.getChunkProvider().playerChunkMap.getVisibleChunks();
++        try {
++            return visibleChunks.values().stream()
++                    .filter(Objects::nonNull)
++                    .map(PlayerChunk::getFullChunk)
++                    .filter(Objects::nonNull)
++                    .map(chunk -> new NMSSlimeChunk(chunk, memoryWorld.getChunk(chunk.locX, chunk.locZ)))
++                    .collect(Collectors.toList());
++        } finally {
++            System.out.printf("NMSSlimeWorld#getChunkStorage done in %dms (chunks: %d)\n", System.currentTimeMillis() - start, visibleChunks.size());
++        }
+     }
+ 
+     @Override
+@@ -68,7 +82,9 @@ public final class NMSSlimeWorld implements SlimeWorld {
+ 
+     @Override
+     public List<CompoundBinaryTag> getWorldMaps() {
+-        return instance.getSlimeWorld().getWorldMaps();
++        Map<String, PersistentBase> data = instance.getWorldPersistentData().data;
++        System.out.printf("NMSSlimeWorld#getWorldMaps(): %s%n", data);
++        return List.of();
+     }
+ 
+     @Override
+@@ -86,6 +102,16 @@ public final class NMSSlimeWorld implements SlimeWorld {
+         return this.instance.getSlimeWorld().getExtraData();
+     }
+ 
++    @Override
++    public CompoundBinaryTag putExtraData(@Nullable CompoundBinaryTag extraData) {
++        return this.instance.getSlimeWorld().putExtraData(extraData);
++    }
++
++    @Override
++    public CompoundBinaryTag updateExtraData(@NotNull Consumer<CompoundBinaryTag.Builder> compoundCustomizer) {
++        return this.instance.getSlimeWorld().updateExtraData(compoundCustomizer);
++    }
++
+     @Override
+     public SlimeWorld clone(String worldName) {
+         return this.memoryWorld.clone(worldName);
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SafeNmsChunkWrapper.java b/src/main/java/com/infernalsuite/aswm/level/SafeNmsChunkWrapper.java
+index 9b4bfe239ed06172b15da300880371632ad01e7a..90176cc8202964df4e6ba8ac16ff82134fa85060 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SafeNmsChunkWrapper.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SafeNmsChunkWrapper.java
+@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
+ import org.jetbrains.annotations.Unmodifiable;
+ 
+ import java.util.List;
++import java.util.function.Consumer;
+ 
+ public record SafeNmsChunkWrapper(NMSSlimeChunk wrapper, SlimeChunk safety) implements SlimeChunk {
+ 
+@@ -69,6 +70,22 @@ public record SafeNmsChunkWrapper(NMSSlimeChunk wrapper, SlimeChunk safety) impl
+         return this.wrapper.getExtraData();
+     }
+ 
++    @Override
++    public @NotNull CompoundBinaryTag putExtraData(@Nullable CompoundBinaryTag extraData) {
++        if (shouldDefaultBackToSlimeChunk())
++            return this.safety.putExtraData(extraData);
++
++        return this.wrapper.putExtraData(extraData);
++    }
++
++    @Override
++    public @NotNull CompoundBinaryTag updateExtraData(@NotNull Consumer<CompoundBinaryTag.Builder> compoundCustomizer) {
++        if (shouldDefaultBackToSlimeChunk())
++            return this.safety.updateExtraData(compoundCustomizer);
++
++        return this.wrapper.updateExtraData(compoundCustomizer);
++    }
++
+     /*
+ Slime chunks can still be requested but not actually loaded, this caused
+ some things to not properly save because they are not "loaded" into the chunk.
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeChunkConverter.java b/src/main/java/com/infernalsuite/aswm/level/SlimeChunkConverter.java
+index 84f378e0da64f6d93499c5a19779b98b5dd47a8b..e6298931321962d1fbf9dead58304ac6ece3ccaf 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeChunkConverter.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeChunkConverter.java
+@@ -161,13 +161,14 @@ final class SlimeChunkConverter {
+ 
+         // Don't try to populate heightmaps if there are none.
+         // Does a crazy amount of block lookups
+-        if (!unsetHeightMaps.isEmpty())
++        if (!unsetHeightMaps.isEmpty()) {
+             HeightMap.a(chunkProxy, unsetHeightMaps);
++        }
+     }
+ 
+     private static void deserializeExtraData(SlimeChunk slimeChunk, SlimeChunkProxy chunkProxy) {
+         CompoundBinaryTag extraDataTag = slimeChunk.getExtraData();
+-        if (extraDataTag == null)
++        if (extraDataTag == null || extraDataTag.keySet().isEmpty())
+             return;
+ 
+         CompoundBinaryTag chunkBukkitValuesTag = extraDataTag.getCompound("ChunkBukkitValues", null);
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java b/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
+index f18586f9575e0b773a59c4752fb008d4d9b1b5c9..b704cd80674d430c477de9d2bdb644c2ace0a966 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
+@@ -21,6 +21,8 @@ import net.minecraft.world.level.biome.BiomeBase;
+ import net.minecraft.world.level.chunk.BiomeStorage;
+ import net.minecraft.world.level.chunk.Chunk;
+ import org.bukkit.World;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
+ import java.io.IOException;
+ import java.util.Arrays;
+@@ -28,6 +30,7 @@ import java.util.Collection;
+ import java.util.List;
+ import java.util.Objects;
+ import java.util.concurrent.CompletableFuture;
++import java.util.function.Consumer;
+ 
+ /*
+ The concept of this is a bit flawed, since ideally this should be a 1:1 representation of the MC world.
+@@ -45,7 +48,7 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+     private final SlimePropertyMap properties;
+     private final boolean readOnly;
+ 
+-    private final CompoundBinaryTag extraData;
++    private @NotNull CompoundBinaryTag extraData;
+ 
+     public SlimeInMemoryWorld(SlimeBootstrap bootstrap, SlimeWorldServer instance) {
+         this.instance = instance;
+@@ -59,7 +62,7 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+         this.properties = bootstrap.initial().getProperties();
+         this.readOnly = bootstrap.initial().isReadOnly();
+ 
+-        this.extraData = bootstrap.initial().getExtraData();
++        putExtraData(bootstrap.initial().getExtraData());
+     }
+ 
+     @Override
+@@ -68,14 +71,18 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+     }
+ 
+     public CompletableFuture<Chunk> promoteFuture(int x, int z) {
+-        SlimeChunk slimeChunk = getChunk(x, z);
+-        if (slimeChunk == null)
+-            return null;
+-
+-        return CompletableFuture.supplyAsync(() -> promote(x, z, slimeChunk));
++        return CompletableFuture.supplyAsync(() -> promote(x, z, getChunk(x, z)));
+     }
+ 
+     public Chunk promote(int x, int z, SlimeChunk chunk) {
++        System.out.printf("SlimeInMemoryWorld#promote(%d, %d, %s)%n", x, z, chunk);
++
++        if (chunk instanceof NMSSlimeChunk cast)
++            return cast.getChunk();
++
++        if (chunk instanceof SafeNmsChunkWrapper cast)
++            return cast.wrapper().getChunk();
++
+         SlimeChunkProxy chunkProxy;
+         if (chunk == null) {
+             ChunkCoordIntPair pos = new ChunkCoordIntPair(x, z);
+@@ -109,7 +116,7 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+         }
+ 
+         CompoundBinaryTag pdcTag = Converter.convertTag(nativeChunk.persistentDataContainer.toTagCompound());
+-        CompoundBinaryTag extraData = slimeChunk.getExtraData().put("ChunkBukkitValues", pdcTag);
++        CompoundBinaryTag extraData = slimeChunk.updateExtraData(tag -> tag.put("ChunkBukkitValues", pdcTag));
+ 
+         SlimeChunkSkeleton slimeChunkSkeleton = new SlimeChunkSkeleton(
+                 slimeChunk.getX(), slimeChunk.getZ(),
+@@ -155,6 +162,25 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+         return mirror.getDataVersion();
+     }
+ 
++    @Override
++    public @NotNull CompoundBinaryTag putExtraData(@Nullable CompoundBinaryTag extraData) {
++        this.extraData = extraData != null ? extraData : CompoundBinaryTag.empty();
++        return this.extraData;
++    }
++
++    @Override
++    public @NotNull CompoundBinaryTag updateExtraData(@NotNull Consumer<CompoundBinaryTag.Builder> compoundCustomizer) {
++        Objects.requireNonNull(compoundCustomizer, "compoundCustomizer cannot be null");
++        CompoundBinaryTag.Builder builder = CompoundBinaryTag.builder();
++
++        if (extraData != null)
++            builder.put(extraData);
++
++        compoundCustomizer.accept(builder);
++        this.extraData = builder.build();
++        return extraData;
++    }
++
+     @Override
+     public World getBukkitWorld() {
+         return instance.getWorld();
+@@ -211,7 +237,7 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+ 
+                 // Serialize Bukkit Values (PDC)
+                 CompoundBinaryTag pdcTag = Converter.convertTag(nativeChunk.persistentDataContainer.toTagCompound());
+-                CompoundBinaryTag extraData = slimeChunk.getExtraData().put("ChunkBukkitValues", pdcTag);
++                CompoundBinaryTag extraData = slimeChunk.updateExtraData(tag -> tag.put("ChunkBukkitValues", pdcTag));
+ 
+                 slimeChunk = new SlimeChunkSkeleton(
+                         slimeChunk.getX(), slimeChunk.getZ(),
+diff --git a/src/main/java/net/minecraft/server/level/PlayerChunkMap.java b/src/main/java/net/minecraft/server/level/PlayerChunkMap.java
+index 26e744db60e2d1650ff82443a7854139e86213f2..75a2f65e7a8677f65608d9a9a935df1dff0eef56 100644
+--- a/src/main/java/net/minecraft/server/level/PlayerChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/PlayerChunkMap.java
+@@ -1222,7 +1222,7 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+         if (world instanceof SlimeWorldServer cast) {
+             CompletableFuture<Chunk> future = cast.getSlimeWorld().promoteFuture(chunkcoordintpair.x, chunkcoordintpair.z);
+             if (future != null) {
+-                return future.thenApply(Either::left);
++                return future.thenApply(ProtoChunkExtension::new).thenApply(Either::left);
+             }
+         }
+ 
+@@ -1540,8 +1540,10 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+ 
+     public boolean saveChunk(IChunkAccess ichunkaccess) {
+         // ASA - Save Slime World chunks using special method
+-        if (world instanceof SlimeWorldServer cast)
+-            return SlimeNMSBridge.instance().trySaveChunk(world, ichunkaccess);
++        if (world instanceof SlimeWorldServer cast) {
++            System.out.printf("PlayerChunkMap#saveChunk(%s): world = %s%n", ichunkaccess, world);
++            return SlimeNMSBridge.instance().trySaveChunk(cast, ichunkaccess);
++        }
+ 
+         try (co.aikar.timings.Timing ignored = this.world.timings.chunkSave.startTiming()) { // Paper
+         this.m.a(ichunkaccess.getPos());
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index 57180e164ac51b1aac070c00d820792d13d67258..19476425ebf8e9b6db68f29ef4d5a8518a113e38 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -1,5 +1,11 @@
+ package org.bukkit.craftbukkit;
+ 
++import joptsimple.OptionParser;
++import joptsimple.OptionSet;
++import net.minecraft.util.ExceptionSuppressor;
++import net.minecraft.world.level.lighting.LightEngineLayerEventListener;
++import net.minecrell.terminalconsole.TerminalConsoleAppender;
++
+ import java.io.File;
+ import java.io.IOException;
+ import java.text.SimpleDateFormat;
+@@ -7,14 +13,8 @@ import java.util.Arrays;
+ import java.util.Calendar;
+ import java.util.Date;
+ import java.util.List;
+-import java.util.concurrent.TimeUnit;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+-import joptsimple.OptionParser;
+-import joptsimple.OptionSet;
+-import net.minecraft.util.ExceptionSuppressor;
+-import net.minecraft.world.level.lighting.LightEngineLayerEventListener;
+-import net.minecrell.terminalconsole.TerminalConsoleAppender; // Paper
+ 
+ public class Main {
+     public static boolean useJline = true;
+@@ -225,8 +225,8 @@ public class Main {
+             }
+ 
+             float javaVersion = Float.parseFloat(System.getProperty("java.class.version"));
+-            if (javaVersion > 60.0) {
+-                System.err.println("Unsupported Java detected (" + javaVersion + "). Only up to Java 16 is supported.");
++            if (javaVersion < 61.0) { // ASA - Require Java 17 or newer
++                System.err.println("Unsupported Java detected (" + javaVersion + "). Only Java 17 or newer is supported.");
+                 if (!Boolean.getBoolean("Paper.IgnoreJavaVersion")) return; // Paper
+             }
+ 
