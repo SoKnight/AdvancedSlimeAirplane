@@ -1,0 +1,173 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Fri, 14 Mar 2025 20:02:53 +0500
+Subject: [PATCH] Update format and fix extraData issues
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java b/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
+index a04c0bb88a4dfceb31d3cb852e11dbf9483a59ec..c7411f70d9779d85d8a5957b96b3a8ae1198bf25 100644
+--- a/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
++++ b/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
+@@ -115,12 +115,12 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+             // This is not pretty, but we really need to hop onto the main thread
+             NmsUtil.runSyncAndWait(() -> {
+                 World bukkitWorld = Bukkit.getWorld(world.getName());
+-                WorldServer level = ((CraftWorld) bukkitWorld).getHandle();
+-                if (level instanceof SlimeWorldServer slimeLevel) {
+-                    future[0] = slimeLevel.save(true, false);
++                WorldServer worldServer = ((CraftWorld) bukkitWorld).getHandle();
++                if (worldServer instanceof SlimeWorldServer cast) {
++                    future[0] = cast.save(true, false);
+                 } else {
+                     // Shouldn't happen
+-                    log.warn("ServerLevel based off of SlimeWorld is not an instance of SlimeLevelInstance. Falling back to default save method.");
++                    log.warn("ServerLevel based off of SlimeWorld is not an instance of SlimeWorldServer. Falling back to default save method.");
+                     bukkitWorld.save();
+                 }
+             });
+@@ -256,6 +256,11 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+         return world;
+     }
+ 
++    @Override
++    public @NotNull byte[] serializeWorld(SlimeWorld world) {
++        return SlimeSerializer.serialize(world);
++    }
++
+     /**
+      * Utility method to register a <b>loaded</b> {@link SlimeWorld} with the internal map (for {@link #getLoadedWorld} calls)
+      *
+diff --git a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+index c352ad316f6f0c0aa335ded0066bccf7a7a72472..378bebae22145d43ebc65469839a42c9530411d7 100644
+--- a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
++++ b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+@@ -65,8 +65,6 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+     private static final CraftPersistentDataTypeRegistry REGISTRY;
+     private static final File UNIVERSE_DIR;
+ 
+-    public static Convertable CONVERTABLE;
+-
+     static {
+         Path path;
+         try {
+@@ -79,7 +77,6 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+ 
+         REGISTRY = new CraftPersistentDataTypeRegistry();
+         UNIVERSE_DIR = path.toFile();
+-        CONVERTABLE = Convertable.a(path);
+ 
+         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+             try {
+@@ -215,7 +212,7 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+     @Override
+     public boolean trySaveChunk(Object world, Object chunkAccess) {
+         if (chunkAccess instanceof IChunkAccess cast && !cast.isNeedsSaving())
+-            return true;
++            return false;
+ 
+         Chunk chunk;
+         if (chunkAccess instanceof ProtoChunkExtension cast) {
+@@ -223,7 +220,7 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+         } else if (chunkAccess instanceof Chunk cast) {
+             chunk = cast;
+         } else {
+-            return true;
++            return false;
+         }
+ 
+         SlimeWorldServer worldServer = (SlimeWorldServer) world;
+@@ -326,21 +323,19 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+             );
+         } else {
+             GameRules gameRules = new GameRules();
+-            if (extraData != null) {
+-                CompoundBinaryTag gamerulesTag = extraData.getCompound("gamerules");
+-                if (!gamerulesTag.keySet().isEmpty()) {
+-                    Map<String, GameRuleKey<?>> gameRuleKeys = CraftWorld.getGameRulesNMS();
+-                    gamerulesTag.forEach(entry -> {
+-                        String gameRule = entry.getKey();
+-                        BinaryTag value = entry.getValue();
+-
+-                        if (gameRuleKeys.containsKey(gameRule) && value instanceof StringBinaryTag valueCast) {
+-                            GameRules.GameRuleValue<?> gameRuleValue = gameRules.get(gameRuleKeys.get(gameRule));
+-                            gameRuleValue.setValue(valueCast.value());
+-                            gameRuleValue.onChange(mcServer);
+-                        }
+-                    });
+-                }
++            CompoundBinaryTag gamerulesTag = extraData.getCompound("gamerules");
++            if (!gamerulesTag.keySet().isEmpty()) {
++                Map<String, GameRuleKey<?>> gameRuleKeys = CraftWorld.getGameRulesNMS();
++                gamerulesTag.forEach(entry -> {
++                    String gameRule = entry.getKey();
++                    BinaryTag value = entry.getValue();
++
++                    if (gameRuleKeys.containsKey(gameRule) && value instanceof StringBinaryTag valueCast) {
++                        GameRules.GameRuleValue<?> gameRuleValue = gameRules.get(gameRuleKeys.get(gameRule));
++                        gameRuleValue.setValue(valueCast.value());
++                        gameRuleValue.onChange(mcServer);
++                    }
++                });
+             }
+ 
+             WorldSettings worldSettings = new WorldSettings(
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+index 3b7c38987d5ebdbb02f8d4982cf6de230ecb4c5a..d9d875d4504e2109d96940215ecb772e521d264b 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+@@ -64,7 +64,7 @@ public final class NMSSlimeChunk implements SlimeChunk {
+         LightEngine lightEngine = chunk.world.getChunkProvider().getLightEngine();
+ 
+         ChunkSection[] nmsSections = chunk.getSections();
+-        for (int sectionId = 0; sectionId < nmsSections.length; sectionId++) {
++        for (int sectionId = 0; sectionId < 16; sectionId++) {
+             ChunkSection section = nmsSections[sectionId];
+             if (section == null)
+                 continue;
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+index 3d1f0ed3f5f37127081878b6eda4fc997f8a6c36..c26d217ab58738baddac6dd5b57d21a5b902d4df 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+@@ -84,7 +84,7 @@ public final class SlimeWorldServer extends WorldServer {
+     ) throws IOException {
+         super(
+                 MinecraftServer.getServer(), MinecraftServer.getServer().executorService,
+-                SLIME_STORAGE.c(slimeBootstrap.initial().getName() + UUID.randomUUID(), dimensionKey),
++                SLIME_STORAGE.c(slimeBootstrap.initial().getName() + '-' + UUID.randomUUID(), dimensionKey),
+                 worldData, worldKey, dimensionManager, MinecraftServer.getServer().worldLoadListenerFactory.create(11),
+                 chunkGenerator, false, 0, new ArrayList<>(), true, environment, null
+         );
+@@ -128,6 +128,7 @@ public final class SlimeWorldServer extends WorldServer {
+     public Future<?> save(boolean forceSave, boolean close) {
+         AsyncCatcher.catchOp("SWM world save");
+ 
++        System.out.printf("SlimeWorldServer#save(%s, %s)%n", forceSave, close);
+         if (!savingDisabled && !slimeWorld.isReadOnly() && !close) {
+             try {
+                 Bukkit.getPluginManager().callEvent(new WorldSaveEvent(getWorld()));
+@@ -139,7 +140,7 @@ public final class SlimeWorldServer extends WorldServer {
+                 // Update level data
+                 NBTTagCompound compound = new NBTTagCompound();
+                 NBTTagCompound nbtTagCompound = worldDataServer.a(MinecraftServer.getServer().getCustomRegistry(), compound);
+-                slimeWorld.getExtraData().put("LevelData", Converter.convertTag(nbtTagCompound));
++                slimeWorld.updateExtraData(tag -> tag.put("LevelData", Converter.convertTag(nbtTagCompound)));
+ 
+                 if (MinecraftServer.getServer().isStopped()) { // Make sure the world gets saved before stopping the server by running it from the main thread
+                     return CompletableFuture.completedFuture(saveInternal().get()); // Async wait for it to finish
+diff --git a/src/main/java/net/minecraft/server/level/PlayerChunkMap.java b/src/main/java/net/minecraft/server/level/PlayerChunkMap.java
+index 75a2f65e7a8677f65608d9a9a935df1dff0eef56..59234780c9494930690e813e5401e82354dee3b4 100644
+--- a/src/main/java/net/minecraft/server/level/PlayerChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/PlayerChunkMap.java
+@@ -1540,10 +1540,8 @@ public class PlayerChunkMap extends IChunkLoader implements PlayerChunk.d {
+ 
+     public boolean saveChunk(IChunkAccess ichunkaccess) {
+         // ASA - Save Slime World chunks using special method
+-        if (world instanceof SlimeWorldServer cast) {
+-            System.out.printf("PlayerChunkMap#saveChunk(%s): world = %s%n", ichunkaccess, world);
+-            return SlimeNMSBridge.instance().trySaveChunk(cast, ichunkaccess);
+-        }
++        if (world instanceof SlimeWorldServer cast && SlimeNMSBridge.instance().trySaveChunk(cast, ichunkaccess))
++            return false;
+ 
+         try (co.aikar.timings.Timing ignored = this.world.timings.chunkSave.startTiming()) { // Paper
+         this.m.a(ichunkaccess.getPos());
