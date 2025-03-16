@@ -1,0 +1,361 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Mon, 17 Mar 2025 01:21:22 +0500
+Subject: [PATCH] Various fixes part 2
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java b/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
+index c7411f70d9779d85d8a5957b96b3a8ae1198bf25..d56d1d6e74802e5ecd18bb0576524fdbe21e1522 100644
+--- a/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
++++ b/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
+@@ -120,7 +120,7 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+                     future[0] = cast.save(true, false);
+                 } else {
+                     // Shouldn't happen
+-                    log.warn("ServerLevel based off of SlimeWorld is not an instance of SlimeWorldServer. Falling back to default save method.");
++                    log.warn("WorldServer based off of SlimeWorld is not an instance of SlimeWorldServer. Falling back to default save method.");
+                     bukkitWorld.save();
+                 }
+             });
+@@ -189,7 +189,6 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+                 loader,
+                 propertyMap,
+                 new Long2ObjectOpenHashMap<>(),
+-                new ArrayList<>(),
+                 readOnly,
+                 BRIDGE.getCurrentVersion(),
+                 CompoundBinaryTag.empty()
+diff --git a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+index 378bebae22145d43ebc65469839a42c9530411d7..96d47113a689758ec9e6046364471648df3d903d 100644
+--- a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
++++ b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+@@ -227,14 +227,12 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+         SlimeInMemoryWorld slimeWorld = worldServer.getSlimeWorld();
+ 
+         SlimeChunk slimeChunk = slimeWorld.getChunk(chunk.locX, chunk.locZ);
+-        System.out.printf("Slime chunk at (%d, %d): %s%n", chunk.locX, chunk.locZ, slimeChunk);
+         if (slimeChunk instanceof NMSSlimeChunk cast) {
+             cast.setChunk(chunk);
+         } else {
+             slimeWorld.updateChunk(new NMSSlimeChunk(chunk, slimeChunk));
+         }
+ 
+-        System.out.printf("Chunk (%d, %d) updated!%n", chunk.locX, chunk.locZ);
+         chunk.setNeedsSaving(false);
+         return true;
+     }
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+index 906ebb49caa0e9d42e6ff7ea0d58aa58bd42529b..c0417fa0f59d8086235586b93303b69d703a974a 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+@@ -9,14 +9,11 @@ import net.kyori.adventure.nbt.CompoundBinaryTag;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.server.level.PlayerChunk;
+ import net.minecraft.world.level.chunk.Chunk;
+-import net.minecraft.world.level.saveddata.PersistentBase;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+ import java.io.IOException;
+ import java.util.Collection;
+-import java.util.List;
+-import java.util.Map;
+ import java.util.Objects;
+ import java.util.function.Consumer;
+ import java.util.stream.Collectors;
+@@ -57,18 +54,13 @@ public final class NMSSlimeWorld implements SlimeWorld {
+ 
+     @Override
+     public Collection<SlimeChunk> getChunkStorage() {
+-        long start = System.currentTimeMillis();
+-        var visibleChunks = instance.getChunkProvider().playerChunkMap.getVisibleChunks();
+-        try {
+-            return visibleChunks.values().stream()
+-                    .filter(Objects::nonNull)
+-                    .map(PlayerChunk::getFullChunk)
+-                    .filter(Objects::nonNull)
+-                    .map(chunk -> new NMSSlimeChunk(chunk, memoryWorld.getChunk(chunk.locX, chunk.locZ)))
+-                    .collect(Collectors.toList());
+-        } finally {
+-            System.out.printf("NMSSlimeWorld#getChunkStorage done in %dms (chunks: %d)\n", System.currentTimeMillis() - start, visibleChunks.size());
+-        }
++        var visibleChunks = instance.getChunkProvider().playerChunkMap.getVisibleChunks().values();
++        return visibleChunks.stream()
++                .filter(Objects::nonNull)
++                .map(PlayerChunk::getFullChunk)
++                .filter(Objects::nonNull)
++                .map(chunk -> new NMSSlimeChunk(chunk, memoryWorld.getChunk(chunk.locX, chunk.locZ)))
++                .collect(Collectors.toList());
+     }
+ 
+     @Override
+@@ -80,13 +72,6 @@ public final class NMSSlimeWorld implements SlimeWorld {
+         }
+     }
+ 
+-    @Override
+-    public List<CompoundBinaryTag> getWorldMaps() {
+-        Map<String, PersistentBase> data = instance.getWorldPersistentData().data;
+-        System.out.printf("NMSSlimeWorld#getWorldMaps(): %s%n", data);
+-        return List.of();
+-    }
+-
+     @Override
+     public boolean isReadOnly() {
+         return getLoader() == null;
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeChunkConverter.java b/src/main/java/com/infernalsuite/aswm/level/SlimeChunkConverter.java
+index e6298931321962d1fbf9dead58304ac6ece3ccaf..2a9f1a7a9c9aa764d072e8caa10bf33b6ee55104 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeChunkConverter.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeChunkConverter.java
+@@ -75,14 +75,14 @@ final class SlimeChunkConverter {
+ 
+     private static ChunkSection[] deserializeSections(SlimeWorldServer world, SlimeChunk slimeChunk, ChunkCoordIntPair pos) {
+         ChunkSection[] chunkSections = new ChunkSection[16];
+-
+         LightEngine lightEngine = world.getChunkProvider().getLightEngine();
+         lightEngine.b(pos, true);
+ 
+-        for (int sectionId = 0; sectionId < slimeChunk.getSections().length; sectionId++) {
+-            SlimeChunkSection slimeSection = slimeChunk.getSections()[sectionId];
++        SlimeChunkSection[] sections = slimeChunk.getSections();
++        for (int sectionId = 0; sectionId < sections.length; sectionId++) {
++            SlimeChunkSection slimeSection = sections[sectionId];
+             if (slimeSection != null) {
+-                ChunkSection section = new ChunkSection(sectionId << 4, null, world, true);
++                ChunkSection section = new ChunkSection(sectionId << 4, null, null, true);
+                 ListBinaryTag blockPalette = slimeSection.getBlockPalette();
+                 long[] blockStates = slimeSection.getBlockStates();
+                 section.getBlocks().a((NBTTagList) Converter.convertTag(blockPalette), blockStates);
+@@ -160,7 +160,7 @@ final class SlimeChunkConverter {
+         }
+ 
+         // Don't try to populate heightmaps if there are none.
+-        // Does a crazy amount of block lookups
++        // Does a crazy amount of blockLight lookups
+         if (!unsetHeightMaps.isEmpty()) {
+             HeightMap.a(chunkProxy, unsetHeightMaps);
+         }
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeChunkProxy.java b/src/main/java/com/infernalsuite/aswm/level/SlimeChunkProxy.java
+index 1e8a5e8b2f469f47f0552777798b9cb37e6d402d..2d7a78088ef3711bd2968e0e76fd329d7b320f82 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeChunkProxy.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeChunkProxy.java
+@@ -32,7 +32,7 @@ public final class SlimeChunkProxy extends Chunk {
+             ChunkSection[] chunkSections,
+             Consumer<Chunk> postLoadAction
+     ) {
+-        super(world, pos, biomeStorage, ChunkConverter.getEmptyConverter(), blockTickList, fluidTypeTickList, 0L, null, postLoadAction);
++        super(world, pos, biomeStorage, ChunkConverter.getEmptyConverter(), blockTickList, fluidTypeTickList, 0L, chunkSections, postLoadAction);
+         this.inMemoryWorld = world.getSlimeWorld();
+     }
+ 
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java b/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
+index b704cd80674d430c477de9d2bdb644c2ace0a966..e9c0c14007b37721194c4cad8baee465bca6751e 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeInMemoryWorld.java
+@@ -13,6 +13,8 @@ import com.infernalsuite.aswm.skeleton.SkeletonSlimeWorld;
+ import com.infernalsuite.aswm.skeleton.SlimeChunkSkeleton;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
++import lombok.AccessLevel;
+ import lombok.Getter;
+ import net.kyori.adventure.nbt.CompoundBinaryTag;
+ import net.minecraft.core.IRegistry;
+@@ -25,11 +27,10 @@ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+ import java.io.IOException;
+-import java.util.Arrays;
+-import java.util.Collection;
+-import java.util.List;
+-import java.util.Objects;
++import java.util.*;
+ import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.locks.Lock;
++import java.util.concurrent.locks.ReentrantLock;
+ import java.util.function.Consumer;
+ 
+ /*
+@@ -44,6 +45,9 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+     private final SlimeWorld mirror;
+     private final Long2ObjectMap<SlimeChunk> chunkStorage;
+ 
++    @Getter(AccessLevel.NONE)
++    private final Lock syncLock;
++
+     private final SlimeLoader loader;
+     private final SlimePropertyMap properties;
+     private final boolean readOnly;
+@@ -58,6 +62,8 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+         for (SlimeChunk initial : bootstrap.initial().getChunkStorage())
+             this.chunkStorage.put(SlimeWorld.chunkPosition(initial), initial);
+ 
++        this.syncLock = new ReentrantLock();
++
+         this.loader = bootstrap.initial().getLoader();
+         this.properties = bootstrap.initial().getProperties();
+         this.readOnly = bootstrap.initial().isReadOnly();
+@@ -75,14 +81,9 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+     }
+ 
+     public Chunk promote(int x, int z, SlimeChunk chunk) {
+-        System.out.printf("SlimeInMemoryWorld#promote(%d, %d, %s)%n", x, z, chunk);
+-
+         if (chunk instanceof NMSSlimeChunk cast)
+             return cast.getChunk();
+ 
+-        if (chunk instanceof SafeNmsChunkWrapper cast)
+-            return cast.wrapper().getChunk();
+-
+         SlimeChunkProxy chunkProxy;
+         if (chunk == null) {
+             ChunkCoordIntPair pos = new ChunkCoordIntPair(x, z);
+@@ -93,13 +94,13 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+             BiomeStorage biomeStorage = new BiomeStorage(instance.r().b(IRegistry.ay), biomes);
+ 
+             chunkProxy = new SlimeChunkProxy(instance, pos, biomeStorage);
+-            chunk = new NMSSlimeChunk(chunkProxy, getChunk(x, z));
++            chunk = new NMSSlimeChunk(chunkProxy, chunk);
+         } else {
+             chunkProxy = SlimeChunkConverter.deserializeChunk(instance, chunk);
+             chunk = new SafeNmsChunkWrapper(new NMSSlimeChunk(chunkProxy, chunk), chunk);
+         }
+ 
+-        this.chunkStorage.put(SlimeWorld.chunkPosition(x, z), chunk);
++        updateChunk(chunk);
+         return chunkProxy;
+     }
+ 
+@@ -111,8 +112,14 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+ 
+         SlimeChunk slimeChunk = new NMSSlimeChunk(nativeChunk, getChunk(chunkX, chunkZ));
+         if (FastChunkPruner.canBePruned(mirror, nativeChunk)) {
+-            this.chunkStorage.remove(SlimeWorld.chunkPosition(chunkX, chunkZ));
+-            return;
++            long chunkPos = SlimeWorld.chunkPosition(chunkX, chunkZ);
++            try {
++                syncLock.lock();
++                this.chunkStorage.remove(chunkPos);
++                return;
++            } finally {
++                syncLock.unlock();
++            }
+         }
+ 
+         CompoundBinaryTag pdcTag = Converter.convertTag(nativeChunk.persistentDataContainer.toTagCompound());
+@@ -128,28 +135,40 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+                 extraData
+         );
+ 
+-        this.chunkStorage.put(SlimeWorld.chunkPosition(slimeChunk), slimeChunkSkeleton);
++        updateChunk(slimeChunkSkeleton);
+     }
+ 
+     @Override
+     public SlimeChunk getChunk(int x, int z) {
+-        return chunkStorage.get(SlimeWorld.chunkPosition(x, z));
++        long chunkPos = SlimeWorld.chunkPosition(x, z);
++        try {
++            syncLock.lock();
++            return chunkStorage.get(chunkPos);
++        } finally {
++            syncLock.unlock();
++        }
+     }
+ 
+     @Override
+     public Collection<SlimeChunk> getChunkStorage() {
+-        return chunkStorage.values();
++        try {
++            syncLock.lock();
++            return Collections.unmodifiableCollection(chunkStorage.values());
++        } finally {
++            syncLock.unlock();
++        }
+     }
+ 
+     @Override
+     public void updateChunk(SlimeChunk chunk) {
+         Objects.requireNonNull(chunk, "chunk cannot be null");
+-        this.chunkStorage.put(SlimeWorld.chunkPosition(chunk), chunk);
+-    }
+-
+-    @Override
+-    public List<CompoundBinaryTag> getWorldMaps() {
+-        return mirror.getWorldMaps();
++        long chunkPos = SlimeWorld.chunkPosition(chunk);
++        try {
++            syncLock.lock();
++            this.chunkStorage.put(chunkPos, chunk);
++        } finally {
++            syncLock.unlock();
++        }
+     }
+ 
+     @Override
+@@ -216,8 +235,16 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+     public SlimeWorld getForSerialization() {
+         SlimeWorld world = SkeletonCloning.weakCopy(this);
+         Long2ObjectMap<SlimeChunk> chunkStorageCopy = new Long2ObjectOpenHashMap<>();
++        ObjectOpenHashSet<Long2ObjectMap.Entry<SlimeChunk>> entrySet;
+ 
+-        for (Long2ObjectMap.Entry<SlimeChunk> entry : chunkStorage.long2ObjectEntrySet()) {
++        try {
++            syncLock.lock();
++            entrySet = new ObjectOpenHashSet<>(chunkStorage.long2ObjectEntrySet());
++        } finally {
++            syncLock.unlock();
++        }
++
++        for (Long2ObjectMap.Entry<SlimeChunk> entry : entrySet) {
+             SlimeChunk slimeChunk = entry.getValue();
+             // NMS "live" chunks need to be converted
+             Chunk nativeChunk = null;
+@@ -258,7 +285,6 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+                 world.getLoader(),
+                 world.getProperties(),
+                 chunkStorageCopy,
+-                world.getWorldMaps(),
+                 world.isReadOnly(),
+                 world.getDataVersion(),
+                 world.getExtraData()
+@@ -267,8 +293,13 @@ public final class SlimeInMemoryWorld implements SlimeWorld, SlimeWorldInstance
+ 
+     public void ensureChunkMarkedAsLoaded(SlimeChunkProxy chunk) {
+         long chunkPos = SlimeWorld.chunkPosition(chunk.locX, chunk.locZ);
+-        if (chunkStorage.get(chunkPos) instanceof SlimeChunkSkeleton cast) {
+-            chunkStorage.put(chunkPos, new NMSSlimeChunk(chunk, cast));
++        try {
++            syncLock.lock();
++            if (chunkStorage.get(chunkPos) instanceof SlimeChunkSkeleton cast) {
++                chunkStorage.put(chunkPos, new NMSSlimeChunk(chunk, cast));
++            }
++        } finally {
++            syncLock.unlock();
+         }
+     }
+ 
+diff --git a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+index c26d217ab58738baddac6dd5b57d21a5b902d4df..c796c1c1d23709cdfab555ecdbca18abdd9adf0a 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
++++ b/src/main/java/com/infernalsuite/aswm/level/SlimeWorldServer.java
+@@ -97,9 +97,9 @@ public final class SlimeWorldServer extends WorldServer {
+         worldDataServer.setDifficulty(EnumDifficulty.valueOf(difficultyValue));
+ 
+         worldDataServer.setSpawn(new BlockPosition(
+-                properties.getValue(SlimeProperties.SPAWN_X),
++                properties.getValue(SlimeProperties.SPAWN_X) + 0.5D,
+                 properties.getValue(SlimeProperties.SPAWN_Y),
+-                properties.getValue(SlimeProperties.SPAWN_Z)
++                properties.getValue(SlimeProperties.SPAWN_Z) + 0.5D
+         ), properties.getValue(SlimeProperties.SPAWN_YAW));
+ 
+         super.setSpawnFlags(
+@@ -128,7 +128,6 @@ public final class SlimeWorldServer extends WorldServer {
+     public Future<?> save(boolean forceSave, boolean close) {
+         AsyncCatcher.catchOp("SWM world save");
+ 
+-        System.out.printf("SlimeWorldServer#save(%s, %s)%n", forceSave, close);
+         if (!savingDisabled && !slimeWorld.isReadOnly() && !close) {
+             try {
+                 Bukkit.getPluginManager().callEvent(new WorldSaveEvent(getWorld()));
