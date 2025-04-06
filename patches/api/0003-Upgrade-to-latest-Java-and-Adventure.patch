@@ -1,0 +1,151 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Mon, 7 Apr 2025 04:05:11 +0500
+Subject: [PATCH] Upgrade to latest Java and Adventure
+
+
+diff --git a/pom.xml b/pom.xml
+index dda63548f376fafd3ed8ff3665025ca4434ec4c0..b744143721c68e6ffd0a5627348edfba18d3fd4b 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -19,10 +19,10 @@
+ 
+     <properties>
+         <!-- <skipTests>true</skipTests> Paper - This [was] not going to end well -->
+-        <maven.compiler.source>17</maven.compiler.source>
+-        <maven.compiler.target>17</maven.compiler.target>
++        <maven.compiler.source>21</maven.compiler.source>
++        <maven.compiler.target>21</maven.compiler.target>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+-        <adventure.version>4.7.0</adventure.version> <!-- Paper - When updating this make sure to update the linked JavaDocs on the homepage as well! -->
++        <adventure.version>4.20.0</adventure.version> <!-- Paper - When updating this make sure to update the linked JavaDocs on the homepage as well! -->
+     </properties>
+ 
+     <repositories>
+@@ -65,6 +65,12 @@
+             <artifactId>adventure-text-serializer-plain</artifactId>
+         </dependency>
+         <!-- Paper end -->
++        <!-- ASP start -->
++        <dependency>
++            <groupId>net.kyori</groupId>
++            <artifactId>adventure-text-minimessage</artifactId>
++        </dependency>
++        <!-- ASP end -->
+         <dependency>
+             <groupId>it.unimi.dsi</groupId>
+             <artifactId>fastutil</artifactId>
+@@ -167,19 +173,19 @@
+         <dependency>
+             <groupId>org.ow2.asm</groupId>
+             <artifactId>asm-tree</artifactId>
+-            <version>9.1</version>
++            <version>9.8</version>
+             <scope>test</scope>
+         </dependency>
+         <!-- ASM -->
+         <dependency>
+             <groupId>org.ow2.asm</groupId>
+             <artifactId>asm</artifactId>
+-            <version>9.0</version>
++            <version>9.8</version>
+         </dependency>
+         <dependency>
+             <groupId>org.ow2.asm</groupId>
+             <artifactId>asm-commons</artifactId>
+-            <version>9.0</version>
++            <version>9.8</version>
+         </dependency>
+     </dependencies>
+ 
+@@ -202,24 +208,24 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-compiler-plugin</artifactId>
+-                <version>3.8.1</version>
++                <version>3.14.0</version>
+                 <dependencies>
+                     <dependency>
+                         <groupId>org.codehaus.plexus</groupId>
+                         <artifactId>plexus-compiler-eclipse</artifactId>
+-                        <version>2.8.8</version>
++                        <version>2.15.0</version>
+                     </dependency>
+                     <dependency>
+                         <groupId>org.eclipse.jdt</groupId>
+                         <artifactId>ecj</artifactId>
+-                        <version>3.24.0</version>
++                        <version>3.41.0</version>
+                     </dependency>
+                 </dependencies>
+             </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-jar-plugin</artifactId>
+-                <version>3.2.0</version>
++                <version>3.4.2</version>
+                 <configuration>
+                     <archive>
+                         <manifest>
+@@ -234,7 +240,7 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-shade-plugin</artifactId>
+-                <version>3.2.3</version>
++                <version>3.6.0</version>
+                 <executions>
+                     <execution>
+                         <phase>package</phase>
+@@ -260,7 +266,7 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-surefire-plugin</artifactId>
+-                <version>2.22.2</version>
++                <version>3.5.3</version>
+                 <configuration>
+                     <properties>
+                         <property>
+@@ -273,7 +279,7 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-javadoc-plugin</artifactId>
+-                <version>3.2.0</version>
++                <version>3.11.2</version>
+                 <configuration>
+                     <links>
+                         <link>https://guava.dev/releases/21.0/api/docs/</link>
+diff --git a/src/main/java/io/papermc/paper/text/PaperComponents.java b/src/main/java/io/papermc/paper/text/PaperComponents.java
+index 77db592d05b754f879f8d1790642e9d9bbd30a4e..73b86cb1174c6838313fb8c61c041766b74704b6 100644
+--- a/src/main/java/io/papermc/paper/text/PaperComponents.java
++++ b/src/main/java/io/papermc/paper/text/PaperComponents.java
+@@ -5,7 +5,7 @@ import net.kyori.adventure.text.flattener.ComponentFlattener;
+ import net.kyori.adventure.text.format.NamedTextColor;
+ import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+-import net.kyori.adventure.text.serializer.plain.PlainComponentSerializer;
++import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+ import org.bukkit.Bukkit;
+ import org.checkerframework.checker.nullness.qual.NonNull;
+ 
+@@ -35,7 +35,7 @@ public final class PaperComponents {
+      *
+      * @return a serializer to plain text
+      */
+-    public static @NonNull PlainComponentSerializer plainSerializer() {
++    public static @NonNull PlainTextComponentSerializer plainSerializer() {
+         return Bukkit.getUnsafe().plainComponentSerializer();
+     }
+ 
+diff --git a/src/main/java/org/bukkit/UnsafeValues.java b/src/main/java/org/bukkit/UnsafeValues.java
+index 379acee1b5f2d06e6a96f3444783f4a29ca24095..935490acf8d6d8d9339dbba5be90b069990a2558 100644
+--- a/src/main/java/org/bukkit/UnsafeValues.java
++++ b/src/main/java/org/bukkit/UnsafeValues.java
+@@ -19,7 +19,7 @@ import org.bukkit.plugin.PluginDescriptionFile;
+ public interface UnsafeValues {
+     // Paper start
+     net.kyori.adventure.text.flattener.ComponentFlattener componentFlattener();
+-    net.kyori.adventure.text.serializer.plain.PlainComponentSerializer plainComponentSerializer();
++    net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer plainComponentSerializer();
+     net.kyori.adventure.text.serializer.gson.GsonComponentSerializer gsonComponentSerializer();
+     net.kyori.adventure.text.serializer.gson.GsonComponentSerializer colorDownsamplingGsonComponentSerializer();
+     net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer legacyComponentSerializer();
