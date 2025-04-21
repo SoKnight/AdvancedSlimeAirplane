@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Mon, 21 Apr 2025 23:05:56 +0500
+Subject: [PATCH] Change log level in LibraryLoader
+
+
+diff --git a/src/main/java/org/bukkit/plugin/java/LibraryLoader.java b/src/main/java/org/bukkit/plugin/java/LibraryLoader.java
+index 939afec1f21f46170d5eff286cf9d698c233e1f4..bca1da5fcd2fa128275aa9ffdb540bdfb2c786a6 100644
+--- a/src/main/java/org/bukkit/plugin/java/LibraryLoader.java
++++ b/src/main/java/org/bukkit/plugin/java/LibraryLoader.java
+@@ -1,15 +1,6 @@
+ // CHECKSTYLE:OFF
+ package org.bukkit.plugin.java;
+ 
+-import java.io.File;
+-import java.net.MalformedURLException;
+-import java.net.URL;
+-import java.net.URLClassLoader;
+-import java.util.ArrayList;
+-import java.util.Arrays;
+-import java.util.List;
+-import java.util.logging.Level;
+-import java.util.logging.Logger;
+ import org.apache.maven.repository.internal.MavenRepositorySystemUtils;
+ import org.bukkit.plugin.PluginDescriptionFile;
+ import org.eclipse.aether.DefaultRepositorySystemSession;
+@@ -36,6 +27,16 @@ import org.eclipse.aether.transport.http.HttpTransporterFactory;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
++import java.io.File;
++import java.net.MalformedURLException;
++import java.net.URL;
++import java.net.URLClassLoader;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.List;
++import java.util.logging.Level;
++import java.util.logging.Logger;
++
+ class LibraryLoader
+ {
+ 
+@@ -115,7 +116,7 @@ class LibraryLoader
+             }
+ 
+             jarFiles.add( url );
+-            logger.log( Level.INFO, "[{0}] Loaded library {1}", new Object[]
++            logger.log( Level.FINE, "[{0}] Loaded library {1}", new Object[]
+             {
+                 desc.getName(), file
+             } );
