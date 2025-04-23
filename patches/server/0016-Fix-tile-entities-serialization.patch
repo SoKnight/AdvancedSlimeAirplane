@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Wed, 23 Apr 2025 18:54:13 +0500
+Subject: [PATCH] Fix tile entities serialization
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+index d9d875d4504e2109d96940215ecb772e521d264b..0fa97c265da8551481032a58feadcdf5bdc0decf 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+@@ -81,7 +81,7 @@ public final class NMSSlimeChunk implements SlimeChunk {
+ 
+             // Block Palette
+             ListBinaryTag blockPalette = Converter.convertTag(blocksCompound.getList("Palette", 10));
+-            if (blockPalette == null || blockPalette.size() == 0)
++            if (blockPalette == null || blockPalette.isEmpty())
+                 continue;
+ 
+             // Block States
+@@ -114,7 +114,8 @@ public final class NMSSlimeChunk implements SlimeChunk {
+     @Override
+     public @NotNull List<CompoundBinaryTag> getTileEntities() {
+         List<NBTTagCompound> tileEntities = chunk.tileEntities.values().stream()
+-                .map(TileEntity::b)
++                .map(this::serializeTileEntity)
++                .filter(Objects::nonNull)
+                 .toList();
+ 
+         return Lists.transform(tileEntities, Converter::convertTag);
+@@ -150,6 +151,11 @@ public final class NMSSlimeChunk implements SlimeChunk {
+         return extraData;
+     }
+ 
++    // по факту это @NotNull, но это NMS, а я не хочу потом рвать жопу и искать причину бага =)
++    private @Nullable NBTTagCompound serializeTileEntity(@NotNull TileEntity tileEntity) {
++        return tileEntity.save(new NBTTagCompound());
++    }
++
+     private @Nullable NBTTagCompound serializeEntity(Entity entity) {
+         try {
+             if (entity.origin != null && entity.origin.getWorld() == null) {

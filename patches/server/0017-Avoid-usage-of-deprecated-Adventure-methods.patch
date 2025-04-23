@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Wed, 23 Apr 2025 18:57:39 +0500
+Subject: [PATCH] Avoid usage of deprecated Adventure methods
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/Converter.java b/src/main/java/com/infernalsuite/aswm/Converter.java
+index ecd0172e2d166ce56a13a1902b95d091e23258ae..b2d2fd9a2eaea085a7f12639c016149d11e70b57 100644
+--- a/src/main/java/com/infernalsuite/aswm/Converter.java
++++ b/src/main/java/com/infernalsuite/aswm/Converter.java
+@@ -67,30 +67,31 @@ public final class Converter {
+     @SuppressWarnings("unchecked")
+     public static <T extends BinaryTag> T convertTag(NBTBase base) {
+         return switch (base.getTypeId()) {
+-            case 0 -> (T) EndBinaryTag.get();
+-            case 1 -> (T) ByteBinaryTag.of(((NBTTagByte) base).asByte());
+-            case 2 -> (T) ShortBinaryTag.of(((NBTTagShort) base).asShort());
+-            case 3 -> (T) IntBinaryTag.of(((NBTTagInt) base).asInt());
+-            case 4 -> (T) LongBinaryTag.of(((NBTTagLong) base).asLong());
+-            case 5 -> (T) FloatBinaryTag.of(((NBTTagFloat) base).asFloat());
+-            case 6 -> (T) DoubleBinaryTag.of(((NBTTagDouble) base).asDouble());
+-            case 7 -> (T) ByteArrayBinaryTag.of(((NBTTagByteArray) base).getBytes());
+-            case 8 -> (T) StringBinaryTag.of(base.asString());
++            case 0 -> (T) EndBinaryTag.endBinaryTag();
++            case 1 -> (T) ByteBinaryTag.byteBinaryTag(((NBTTagByte) base).asByte());
++            case 2 -> (T) ShortBinaryTag.shortBinaryTag(((NBTTagShort) base).asShort());
++            case 3 -> (T) IntBinaryTag.intBinaryTag(((NBTTagInt) base).asInt());
++            case 4 -> (T) LongBinaryTag.longBinaryTag(((NBTTagLong) base).asLong());
++            case 5 -> (T) FloatBinaryTag.floatBinaryTag(((NBTTagFloat) base).asFloat());
++            case 6 -> (T) DoubleBinaryTag.doubleBinaryTag(((NBTTagDouble) base).asDouble());
++            case 7 -> (T) ByteArrayBinaryTag.byteArrayBinaryTag(((NBTTagByteArray) base).getBytes());
++            case 8 -> (T) StringBinaryTag.stringBinaryTag(base.asString());
+             case 9 -> {
+                 List<BinaryTag> list = new ArrayList<>();
+                 NBTTagList originalList = ((NBTTagList) base);
+                 for (NBTBase entry : originalList) list.add(convertTag(entry));
+                 BinaryTagType<T> tagType = convertTagType(originalList.d_());
+-                yield (T) ListBinaryTag.of(tagType, list);
++                yield (T) ListBinaryTag.listBinaryTag(tagType, list);
+             }
+             case 10 -> {
+                 CompoundBinaryTag.Builder builder = CompoundBinaryTag.builder();
+                 NBTTagCompound originalCompound = ((NBTTagCompound) base);
+-                for (String key : originalCompound.getKeys()) builder.put(key, convertTag(Objects.requireNonNull(originalCompound.get(key))));
++                for (String key : originalCompound.getKeys())
++                    builder.put(key, convertTag(Objects.requireNonNull(originalCompound.get(key))));
+                 yield (T) builder.build();
+             }
+-            case 11 -> (T) IntArrayBinaryTag.of(((NBTTagIntArray) base).getInts());
+-            case 12 -> (T) LongArrayBinaryTag.of(((NBTTagLongArray) base).getLongs());
++            case 11 -> (T) IntArrayBinaryTag.intArrayBinaryTag(((NBTTagIntArray) base).getInts());
++            case 12 -> (T) LongArrayBinaryTag.longArrayBinaryTag(((NBTTagLongArray) base).getLongs());
+             default -> throw new IllegalArgumentException("Invalid tag type " + base.getTypeId());
+         };
+     }
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+index 0fa97c265da8551481032a58feadcdf5bdc0decf..92b5920a64cdc0d97cfdbd9daadebaa972c627d7 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeChunk.java
+@@ -102,7 +102,7 @@ public final class NMSSlimeChunk implements SlimeChunk {
+     @Override
+     public @NotNull CompoundBinaryTag getHeightMaps() {
+         CompoundBinaryTag.Builder builder = CompoundBinaryTag.builder();
+-        chunk.heightMap.forEach((type, map) -> builder.put(type.name(), LongArrayBinaryTag.of(map.a())));
++        chunk.heightMap.forEach((type, map) -> builder.put(type.name(), LongArrayBinaryTag.longArrayBinaryTag(map.a())));
+         return builder.build();
+     }
+ 
