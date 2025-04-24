@@ -1,0 +1,74 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Thu, 24 Apr 2025 19:45:10 +0500
+Subject: [PATCH] Add #findLoader API method
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java b/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
+index d56d1d6e74802e5ecd18bb0576524fdbe21e1522..a3f9bb0d6df9d584e2141f550fbe5386fc4dd065 100644
+--- a/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
++++ b/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
+@@ -46,6 +46,13 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+         System.setProperty("org.slf4j.simpleLogger.showShortLogName", "true");
+     }
+ 
++    @Override
++    public @NotNull Optional<SlimeLoader> findLoader(@NotNull String loaderName) {
++        Objects.requireNonNull(loaderName, "Loader name cannot be null");
++        Map<String, SlimeLoader> loaders = BRIDGE.getLoaders();
++        return loaders != null ? Optional.ofNullable(loaders.get(loaderName)) : Optional.empty();
++    }
++
+     @Override
+     public @NotNull SlimeWorld readWorld(
+             @NotNull SlimeLoader loader,
+diff --git a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+index 96d47113a689758ec9e6046364471648df3d903d..5f72fe012f85c4f383cc8642028d5a5caa847f02 100644
+--- a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
++++ b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+@@ -1,6 +1,7 @@
+ package com.infernalsuite.aswm;
+ 
+ import com.infernalsuite.aswm.api.SlimeInternalsBridge;
++import com.infernalsuite.aswm.api.loaders.SlimeLoader;
+ import com.infernalsuite.aswm.api.world.SlimeChunk;
+ import com.infernalsuite.aswm.api.world.SlimeWorld;
+ import com.infernalsuite.aswm.api.world.SlimeWorldInstance;
+@@ -38,7 +39,10 @@ import net.minecraft.world.level.chunk.ProtoChunkExtension;
+ import net.minecraft.world.level.dimension.DimensionManager;
+ import net.minecraft.world.level.dimension.WorldDimension;
+ import net.minecraft.world.level.dimension.end.EnderDragonBattle;
+-import net.minecraft.world.level.storage.*;
++import net.minecraft.world.level.storage.LevelVersion;
++import net.minecraft.world.level.storage.PersistentCommandStorage;
++import net.minecraft.world.level.storage.WorldDataServer;
++import net.minecraft.world.level.storage.WorldPersistentData;
+ import org.apache.commons.io.FileUtils;
+ import org.bukkit.Bukkit;
+ import org.bukkit.World.Environment;
+@@ -93,6 +97,8 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+ 
+     private boolean loadingDefaultWorlds;
+ 
++    private Map<String, SlimeLoader> loaders;
++
+     @Override
+     public int getCurrentVersion() {
+         return SharedConstants.getGameVersion().getWorldVersion();
+@@ -237,6 +243,16 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+         return true;
+     }
+ 
++    @Override
++    public Map<String, SlimeLoader> getLoaders() {
++        return loaders;
++    }
++
++    @Override
++    public void setLoaders(Map<String, SlimeLoader> loaders) {
++        this.loaders = loaders;
++    }
++
+     public void registerWorld(SlimeWorldServer world) {
+         MinecraftServer server = world.getMinecraftServer();
+         server.initWorld(world, world.worldDataServer, world.worldDataServer, world.worldDataServer.getGeneratorSettings());
