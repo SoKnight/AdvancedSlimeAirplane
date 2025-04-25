@@ -1,0 +1,115 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Sat, 26 Apr 2025 02:06:49 +0500
+Subject: [PATCH] Set debug log level for API impl
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java b/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
+index a3f9bb0d6df9d584e2141f550fbe5386fc4dd065..3f76d637e1937f762f3d56692c8fddda17f70253 100644
+--- a/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
++++ b/src/main/java/com/infernalsuite/aswm/AdvancedSlimePaper.java
+@@ -15,7 +15,6 @@ import com.infernalsuite.aswm.serialization.slime.reader.SlimeWorldReaderRegistr
+ import com.infernalsuite.aswm.skeleton.SkeletonSlimeWorld;
+ import com.infernalsuite.aswm.util.NmsUtil;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+-import lombok.extern.slf4j.Slf4j;
+ import net.kyori.adventure.nbt.CompoundBinaryTag;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.server.level.WorldServer;
+@@ -26,26 +25,27 @@ import org.bukkit.event.world.WorldLoadEvent;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ import org.jetbrains.annotations.Unmodifiable;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
+ import org.spigotmc.AsyncCatcher;
+ 
+ import java.io.IOException;
+ import java.nio.file.Path;
+-import java.util.*;
++import java.util.List;
++import java.util.Map;
++import java.util.Objects;
++import java.util.Optional;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.Future;
+ 
+-@Slf4j
+ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+ 
+     private static final SlimeInternalsBridge BRIDGE = SlimeInternalsBridge.get();
++    private static final Logger LOG = LoggerFactory.getLogger("ASA");
+ 
+     private final Map<String, SlimeWorld> loadedWorlds = new ConcurrentHashMap<>();
+ 
+-    static {
+-        System.setProperty("org.slf4j.simpleLogger.showShortLogName", "true");
+-    }
+-
+     @Override
+     public @NotNull Optional<SlimeLoader> findLoader(@NotNull String loaderName) {
+         Objects.requireNonNull(loaderName, "Loader name cannot be null");
+@@ -64,7 +64,7 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+         Objects.requireNonNull(worldName, "World name cannot be null");
+         Objects.requireNonNull(propertyMap, "Properties cannot be null");
+ 
+-        log.info("Reading world '{}'...", worldName);
++        LOG.debug("Reading world '{}'...", worldName);
+         long start = System.currentTimeMillis();
+ 
+         byte[] serializedWorld = loader.readWorld(worldName);
+@@ -76,7 +76,7 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+         if (actualWorldVersion != expectedWorldVersion)
+             throw new MismatchedWorldVersionException(actualWorldVersion, expectedWorldVersion);
+ 
+-        log.info("World '{}' read in {}ms.", worldName, System.currentTimeMillis() - start);
++        LOG.debug("World '{}' read in {}ms.", worldName, System.currentTimeMillis() - start);
+         return slimeWorld;
+     }
+ 
+@@ -91,7 +91,7 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+         if (Bukkit.getWorld(world.getName()) != null)
+             throw new IllegalArgumentException("World '%s' is already loaded".formatted(world.getName()));
+ 
+-        log.info("Loading world '{}'...", world.getName());
++        LOG.debug("Loading world '{}'...", world.getName());
+         long start = System.currentTimeMillis();
+ 
+         SlimeWorldInstance instance = BRIDGE.loadInstance(world);
+@@ -102,7 +102,7 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+ 
+         registerWorld(mirror);
+ 
+-        log.info("World '{}' loaded in {}ms.", world.getName(), System.currentTimeMillis() - start);
++        LOG.debug("World '{}' loaded in {}ms.", world.getName(), System.currentTimeMillis() - start);
+         return mirror;
+     }
+ 
+@@ -127,7 +127,7 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+                     future[0] = cast.save(true, false);
+                 } else {
+                     // Shouldn't happen
+-                    log.warn("WorldServer based off of SlimeWorld is not an instance of SlimeWorldServer. Falling back to default save method.");
++                    LOG.warn("WorldServer based off of SlimeWorld is not an instance of SlimeWorldServer. Falling back to default save method.");
+                     bukkitWorld.save();
+                 }
+             });
+@@ -146,7 +146,7 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+                 }
+             }
+         } else {
+-            log.info("Saving unloaded world '{}'...", world.getName());
++            LOG.debug("Saving unloaded world '{}'...", world.getName());
+             Objects.requireNonNull(world.getLoader(), "World loader cannot be null");
+ 
+             long start = System.currentTimeMillis();
+@@ -157,7 +157,7 @@ public final class AdvancedSlimePaper implements AdvancedSlimePaperAPI {
+             world.getLoader().saveWorld(world.getName(), serializedWorld);
+             long savedIn = System.currentTimeMillis() - start;
+ 
+-            log.info(
++            LOG.debug(
+                     "World '{}' serialized in {}ms and saved in {}ms.",
+                     world.getName(), serializedIn, savedIn
+             );
