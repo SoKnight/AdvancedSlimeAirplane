@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Mon, 12 May 2025 19:44:51 +0500
+Subject: [PATCH] Fix usage of DamageCause.SUICIDE
+
+
+diff --git a/src/main/java/org/bukkit/event/entity/EntityDamageEvent.java b/src/main/java/org/bukkit/event/entity/EntityDamageEvent.java
+index feec8b1e15cd407b7a50cfcfaba11374c0e37e82..e168795b89c74eabf702074c041e3ca4b09eda3a 100644
+--- a/src/main/java/org/bukkit/event/entity/EntityDamageEvent.java
++++ b/src/main/java/org/bukkit/event/entity/EntityDamageEvent.java
+@@ -3,8 +3,6 @@ package org.bukkit.event.entity;
+ import com.google.common.base.Function;
+ import com.google.common.base.Functions;
+ import com.google.common.collect.ImmutableMap;
+-import java.util.EnumMap;
+-import java.util.Map;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Material;
+ import org.bukkit.entity.Entity;
+@@ -13,6 +11,9 @@ import org.bukkit.event.Cancellable;
+ import org.bukkit.event.HandlerList;
+ import org.jetbrains.annotations.NotNull;
+ 
++import java.util.EnumMap;
++import java.util.Map;
++
+ /**
+  * Stores data for damage events
+  */
+@@ -353,7 +354,7 @@ public class EntityDamageEvent extends EntityEvent implements Cancellable {
+         /**
+          * Damage caused by committing suicide using the command "/kill"
+          * <p>
+-         * Damage: 1000
++         * Damage: {@link Float#MAX_VALUE}
+          */
+         SUICIDE,
+         /**
