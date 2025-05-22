@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Fri, 23 May 2025 02:26:51 +0500
+Subject: [PATCH] Fix instance loading from NMSSlimeWorld
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+index 5f72fe012f85c4f383cc8642028d5a5caa847f02..4f88b18fdb86a1849f2f2ca4795d4ab5a7dc86c0 100644
+--- a/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
++++ b/src/main/java/com/infernalsuite/aswm/SlimeNMSBridge.java
+@@ -6,10 +6,8 @@ import com.infernalsuite.aswm.api.world.SlimeChunk;
+ import com.infernalsuite.aswm.api.world.SlimeWorld;
+ import com.infernalsuite.aswm.api.world.SlimeWorldInstance;
+ import com.infernalsuite.aswm.api.world.properties.SlimeProperties;
+-import com.infernalsuite.aswm.level.NMSSlimeChunk;
+-import com.infernalsuite.aswm.level.SlimeBootstrap;
+-import com.infernalsuite.aswm.level.SlimeInMemoryWorld;
+-import com.infernalsuite.aswm.level.SlimeWorldServer;
++import com.infernalsuite.aswm.level.*;
++import com.infernalsuite.aswm.skeleton.SkeletonCloning;
+ import com.mojang.serialization.Dynamic;
+ import com.mojang.serialization.Lifecycle;
+ import lombok.extern.log4j.Log4j2;
+@@ -183,6 +181,9 @@ public final class SlimeNMSBridge implements SlimeInternalsBridge {
+         if (Bukkit.getWorld(worldName) != null)
+             throw new IllegalArgumentException("World %s already exists! Maybe it's an outdated SlimeWorld object?".formatted(worldName));
+ 
++        if (slimeWorld instanceof NMSSlimeWorld handle)
++            slimeWorld = SkeletonCloning.fullClone(handle.getName(), slimeWorld, handle.getLoader());
++
+         SlimeWorldServer server = createSlimeWorld(slimeWorld, dimensionOverride);
+         registerWorld(server);
+         return server.getSlimeWorld();
