@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SoKnight <mcliyanage2018@gmail.com>
+Date: Fri, 23 May 2025 23:02:21 +0500
+Subject: [PATCH] Fix NMSSlimeWorld#getChunkStorage
+
+
+diff --git a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+index c0417fa0f59d8086235586b93303b69d703a974a..c6b39c8aeb6ffb77041e7d50b6687d273beb51d0 100644
+--- a/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
++++ b/src/main/java/com/infernalsuite/aswm/level/NMSSlimeWorld.java
+@@ -5,6 +5,8 @@ import com.infernalsuite.aswm.api.loaders.SlimeLoader;
+ import com.infernalsuite.aswm.api.world.SlimeChunk;
+ import com.infernalsuite.aswm.api.world.SlimeWorld;
+ import com.infernalsuite.aswm.api.world.properties.SlimePropertyMap;
++import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
++import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+ import net.kyori.adventure.nbt.CompoundBinaryTag;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.server.level.PlayerChunk;
+@@ -16,7 +18,8 @@ import java.io.IOException;
+ import java.util.Collection;
+ import java.util.Objects;
+ import java.util.function.Consumer;
+-import java.util.stream.Collectors;
++
++import static com.infernalsuite.aswm.api.world.SlimeWorld.chunkPosition;
+ 
+ public final class NMSSlimeWorld implements SlimeWorld {
+ 
+@@ -54,13 +57,20 @@ public final class NMSSlimeWorld implements SlimeWorld {
+ 
+     @Override
+     public Collection<SlimeChunk> getChunkStorage() {
+-        var visibleChunks = instance.getChunkProvider().playerChunkMap.getVisibleChunks().values();
+-        return visibleChunks.stream()
++        Long2ObjectMap<SlimeChunk> allChunks = new Long2ObjectOpenHashMap<>();
++
++        // firstly, load chunks from the memory world
++        memoryWorld.getChunkStorage().forEach(chunk -> allChunks.put(chunkPosition(chunk), chunk));
++
++        // overlap existing chunks with 'live' visible NMS chunks
++        instance.getChunkProvider().playerChunkMap.getVisibleChunks().values().stream()
+                 .filter(Objects::nonNull)
+                 .map(PlayerChunk::getFullChunk)
+                 .filter(Objects::nonNull)
+                 .map(chunk -> new NMSSlimeChunk(chunk, memoryWorld.getChunk(chunk.locX, chunk.locZ)))
+-                .collect(Collectors.toList());
++                .forEach(chunk -> allChunks.put(chunkPosition(chunk), chunk));
++
++        return allChunks.values();
+     }
+ 
+     @Override
